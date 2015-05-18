@@ -253,8 +253,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (1 of 2)
 
-  const Int_t nPtBins[nTrigType] = {100, 100, 100, 100, 100};
-  const Int_t maxPt[nTrigType] = {100, 150, 150, 100, 150};
+  const Int_t nPtBins[nTrigType] = {100, 200, 200, 100, 200};
+  const Int_t maxPt[nTrigType] = {100, 200, 200, 100, 200};
   const Int_t nEtaBins = 50;
   TH1F *histsPt_p[nTrigType][maxNTrig2+1], *histsEta_p[nTrigType][maxNTrig2+1];
 
@@ -375,9 +375,15 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
 
     //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (2 of 2)
-    Double_t trigOfflinePt[nTrigType] = {maxTrkPt, max3CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt, maxDi4CaloAnaPt};
-    Double_t trigOfflineEta[nTrigType] = {maxTrkEta, max3CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta, maxDi4CaloAnaEta};
-    Bool_t trigCond[nTrigType] = {true, true, true, true, twoDi4CaloAnaPt > 55.0};
+    const Int_t nOfflineObj = 5;
+    if(nOfflineObj != nTrigType){
+      std::cout << "ERROR: OFFLINE OBJECT NUMBER MUST MATCH NUMBER OF TRIGGER 'TYPES' IN INPUT TEXT FILE; RETURN 1" << std::endl;
+      return 1;
+    }
+
+    Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, max3CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt, maxDi4CaloAnaPt};
+    Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, max3CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta, maxDi4CaloAnaEta};
+    Bool_t trigCond[nOfflineObj] = {true, true, true, true, twoDi4CaloAnaPt > 55.0};
 
     for(Int_t iter = 0; iter < nTrigType; iter++){
       if(trigOfflinePt[iter] > 0 && trigCond[iter]){

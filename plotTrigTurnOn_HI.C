@@ -26,20 +26,21 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   std::string buffer;
   std::vector<std::string> listOfTrig;
+  Int_t nTrigTypeTemp = 0;
   int nLines = 0;
-  ifstream inTrigFile(inTrigFileName.data());
+  ifstream* inTrigFile = new ifstream(inTrigFileName.data());
 
   std::cout << inTrigFileName << std::endl;
-  std::cout << inTrigFile.is_open() << std::endl;
 
-  if(!inTrigFile.is_open()){
+  if(!inTrigFile->is_open()){
     std::cout << "Error opening file. Exiting." <<std::endl;
     return 1;
   }
   else{
     while(true){
-      inTrigFile >> buffer;
-      if(inTrigFile.eof()) break;
+      *inTrigFile >> buffer;
+      if(inTrigFile->eof()) break;
+      if(std::string::npos== buffer.find("HLT")) nTrigTypeTemp++;
       listOfTrig.push_back(buffer);
       nLines++;
     }
@@ -47,42 +48,35 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   std::cout << "Trigger List Loaded" << std::endl;
 
-  const Int_t nTrigType = 5;
-  const std::string trigType[nTrigType] = {"TRK", "3JET", "4JET", "GAMMA", "4DIJET"};
+  const Int_t nTrigType = nTrigTypeTemp;
+  std::string trigType[nTrigType];
   Int_t trigTypeCount[nTrigType];
-  Bool_t trigTypeBool[nTrigType];
+
+  delete inTrigFile;
+  inTrigFile = new ifstream(inTrigFileName.data());
+  nLines = 0;
+
+  while(true){
+    *inTrigFile >> buffer;
+    if(inTrigFile->eof()) break;
+    if(std::string::npos== buffer.find("HLT")){
+      trigType[nLines] = buffer;
+      nLines++;
+    }
+  }
+
+  delete inTrigFile;
+  nLines = 0;
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     trigTypeCount[iter] = 0;
-    trigTypeBool[iter] = false;
   }
 
-  for(Int_t iter = 0; iter < (Int_t)(listOfTrig.size()); iter++){
+  for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
     std::cout << listOfTrig[iter] << std::endl;
 
-    Bool_t typeSwitch = false;
-
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(!strcmp(listOfTrig[iter].c_str(), trigType[typeIter].c_str())){
-	
-	for(Int_t typeIter2 = 0; typeIter2 < nTrigType; typeIter2++){
-	  trigTypeBool[typeIter2] = false;
-	}
-
-	trigTypeBool[typeIter] = true;
-	typeSwitch = true;
-	break;
-      }
-    }
-
-    if(typeSwitch) continue;
-
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(trigTypeBool[typeIter]){
-	trigTypeCount[typeIter]++;
-	break;
-      }
-    }
+    if(std::string::npos== listOfTrig[iter].find("HLT")) nLines++;
+    else trigTypeCount[nLines]++;
   }
 
   Int_t maxNTrig = -1;
@@ -93,43 +87,26 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   std::string trigName[nTrigType][maxNTrig2];
 
+  nLines = 0;
   Int_t tempPosIter = 0;
 
-  for(Int_t iter = 0; iter < (Int_t)(listOfTrig.size()); iter++){
-    Bool_t typeSwitch = false;
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(!strcmp(listOfTrig[iter].c_str(), trigType[typeIter].c_str())){
-        for(Int_t typeIter2 = 0; typeIter2 < nTrigType; typeIter2++){
-          trigTypeBool[typeIter2] = false;
-        }
-
-        trigTypeBool[typeIter] = true;
-	typeSwitch = true;
-	tempPosIter = 0;
-        break;
-      }
+  for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
+    if(std::string::npos== listOfTrig[iter].find("HLT")){
+      nLines++;
+      tempPosIter = 0;
     }
-
-    if(typeSwitch) continue;
-
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(trigTypeBool[typeIter]){
-        trigName[typeIter][tempPosIter] = listOfTrig[iter];
-	tempPosIter++;
-        break;
-      }
+    else{
+      trigName[nLines][tempPosIter] = listOfTrig[iter];
+      tempPosIter++;
     }
   }
-
-  Int_t error = 0;
-  std::cout << error << std::endl;
-  error++;
 
   TFile* inFile_p = new TFile(inHistFile.c_str(), "READ");
 
   std::string canvPtName[nTrigType];
   TCanvas* trigCanvPt_p[nTrigType];
   TGraphAsymmErrors* aPt_p[nTrigType][maxNTrig2];
+  //ONLY EDITING SHOULD OCCUR HERE
   const Int_t maxPlotTrig = 5;
   const Int_t trigColors[5] = {1, kBlue, kRed, kYellow+1, kMagenta};
   TLegend* trigLeg_p[nTrigType];
@@ -169,10 +146,6 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     delete oneLine_p;
   }
 
-
-  std::cout << error << std::endl;
-  error++;
-
   std::string outName = inHistFile;
   const std::string inString = "HIST";
   const std::string outString = "PLOT";
@@ -191,18 +164,12 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     claverCanvasSaving(trigCanvPt_p[iter], Form("pdfDir/%s", canvPtName[iter].c_str()), "pdf");
   }
 
-  std::cout << error << std::endl;
-  error++;
-
   outFile_p->Close();
   delete outFile_p;
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     delete trigCanvPt_p[iter];
   }
-
-  std::cout << error << std::endl;
-  error++;
 
   inFile_p->Close();
   delete inFile_p;
