@@ -25,24 +25,26 @@ const TString HLTFilename = "openHLT_20150508_HIMinBias502_740F.root";
 const int nBins = 200;
 const double maxpt = 200;
 
-int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile, const std::string inTrigFileName, const std::string outFile)
+int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile, const std::string inTrigFileName)
 {
   std::string buffer;
   std::vector<std::string> listOfTrig;
+  Int_t nTrigTypeTemp = 0;
   int nLines = 0;
-  ifstream inTrigFile(inTrigFileName.data());
+  ifstream* inTrigFile = new ifstream(inTrigFileName.data());
 
   std::cout << inTrigFileName << std::endl;
-  std::cout << inTrigFile.is_open() << std::endl;
 
-  if(!inTrigFile.is_open()){
+  if(!inTrigFile->is_open()){
     std::cout << "Error opening file. Exiting." <<std::endl;
     return 1;
   }
   else{
+    std::cout << "Gettng Trig List" << std::endl;
     while(true){
-      inTrigFile >> buffer;
-      if(inTrigFile.eof()) break;
+      *inTrigFile >> buffer;
+      if(inTrigFile->eof()) break;
+      if(std::string::npos== buffer.find("HLT")) nTrigTypeTemp++;
       listOfTrig.push_back(buffer);
       nLines++;
     }
@@ -50,39 +52,36 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   std::cout << "Trigger List Loaded" << std::endl;
 
-  const Int_t nTrigType = 4;
-  const std::string trigType[4] = {"TRK", "3JET", "4JET", "GAMMA"};
-  Int_t trigTypeCount[nTrigType] = {0, 0, 0, 0};
-  Bool_t trigTypeBool[nTrigType] = {false, false, false, false};
+  const Int_t nTrigType = nTrigTypeTemp;
+  std::string trigType[nTrigType];
+  Int_t trigTypeCount[nTrigType];
 
-  for(Int_t iter = 0; iter < (Int_t)(listOfTrig.size()); iter++){
-    std::cout << listOfTrig[iter] << std::endl;
+  delete inTrigFile;
+  inTrigFile = new ifstream(inTrigFileName.data());
+  nLines = 0;
 
-    Bool_t typeSwitch = false;
-
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(!strcmp(listOfTrig[iter].c_str(), trigType[typeIter].c_str())){
-	
-	for(Int_t typeIter2 = 0; typeIter2 < nTrigType; typeIter2++){
-	  trigTypeBool[typeIter2] = false;
-	}
-
-	trigTypeBool[typeIter] = true;
-	typeSwitch = true;
-	break;
-      }
-    }
-
-    if(typeSwitch) continue;
-
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(trigTypeBool[typeIter]){
-	trigTypeCount[typeIter]++;
-	break;
-      }
+  while(true){
+    *inTrigFile >> buffer;
+    if(inTrigFile->eof()) break;
+    if(std::string::npos== buffer.find("HLT")){
+      trigType[nLines] = buffer;
+      nLines++;
     }
   }
 
+  delete inTrigFile;
+  nLines = 0;
+
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    trigTypeCount[iter] = 0;
+  }
+
+  for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
+    std::cout << listOfTrig[iter] << std::endl;
+
+    if(std::string::npos== listOfTrig[iter].find("HLT")) nLines++;
+    else trigTypeCount[nLines]++;
+  }
 
   TFile *HLTFile_p =  new TFile(inHLTFile.c_str(), "READ");
   TTree *HLTTree = (TTree*)HLTFile_p->Get("hltbitanalysis/HltTree");
@@ -94,40 +93,25 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   for(Int_t iter = 0; iter < nTrigType; iter++){
     if(trigTypeCount[iter] > maxNTrig) maxNTrig = trigTypeCount[iter];
   }
-
   const Int_t maxNTrig2 = maxNTrig;
 
   std::string trigName[nTrigType][maxNTrig2];
   Int_t trigVal[nTrigType][maxNTrig2];
   Int_t nTrigFire[nTrigType][maxNTrig2];
 
+  nLines = 0;
   Int_t tempPosIter = 0;
 
-  for(Int_t iter = 0; iter < (Int_t)(listOfTrig.size()); iter++){
-    Bool_t typeSwitch = false;
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(!strcmp(listOfTrig[iter].c_str(), trigType[typeIter].c_str())){
-        for(Int_t typeIter2 = 0; typeIter2 < nTrigType; typeIter2++){
-          trigTypeBool[typeIter2] = false;
-        }
-
-        trigTypeBool[typeIter] = true;
-	typeSwitch = true;
-	tempPosIter = 0;
-        break;
-      }
+  for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
+    if(std::string::npos== listOfTrig[iter].find("HLT")){
+      nLines++;
+      tempPosIter = 0;
     }
-
-    if(typeSwitch) continue;
-
-    for(Int_t typeIter = 0; typeIter < nTrigType; typeIter++){
-      if(trigTypeBool[typeIter]){
-        trigName[typeIter][tempPosIter] = listOfTrig[iter];
-	trigVal[typeIter][tempPosIter] = 0;
-	nTrigFire[typeIter][tempPosIter] = 0;
-	tempPosIter++;
-        break;
-      }
+    else{
+      trigName[nLines][tempPosIter] = listOfTrig[iter];
+      trigVal[nLines][tempPosIter] = 0;
+      nTrigFire[nLines][tempPosIter] = 0;
+      tempPosIter++;
     }
   }
 
@@ -140,7 +124,6 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   HLTTree->SetBranchAddress("Event", &hlt_event);
   HLTTree->SetBranchAddress("Run", &hlt_run);
   HLTTree->SetBranchAddress("LumiBlock", &hlt_lumi);
-
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
@@ -268,12 +251,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   AnaPhotonTree->SetBranchAddress("eta", photonEta);
   AnaPhotonTree->SetBranchAddress("phi", photonPhi);
 
-  const Int_t nPtBins[nTrigType] = {100, 100, 100, 100};
-  const Int_t maxPt[nTrigType] = {100, 150, 150, 100};
+  //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (1 of 2)
+
+  const Int_t nPtBins[nTrigType] = {100, 100, 100, 100, 100};
+  const Int_t maxPt[nTrigType] = {100, 150, 150, 100, 150};
   const Int_t nEtaBins = 50;
   TH1F *histsPt_p[nTrigType][maxNTrig2+1], *histsEta_p[nTrigType][maxNTrig2+1];
 
-  //edit here
   for(Int_t iter = 0; iter < nTrigType; iter++){
     histsPt_p[iter][0] = new TH1F(Form("leading%s_pt", trigType[iter].c_str()), Form("leading%s_pt", trigType[iter].c_str()), nPtBins[iter], 0.0, maxPt[iter]);
 
@@ -351,11 +335,31 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     Double_t max4CaloAnaPt = -1;
     Double_t max4CaloAnaEta = -100;
 
+    Double_t maxDi4CaloAnaPt = -1;
+    Double_t maxDi4CaloAnaEta = -100;
+
+    Double_t twoDi4CaloAnaPt = -1;
+    //    Double_t twoDi4CaloAnaEta = -100;
+
     for(int i = 0; i < n4Caloref; ++i){
       if(fabs(jt4Caloeta[i]) > 2.0) continue;
       if(jt4Calopt[i] > max4CaloAnaPt){
 	max4CaloAnaPt = jt4Calopt[i];
 	max4CaloAnaEta = jt4Caloeta[i];
+      }
+
+      if(fabs(jt4Caloeta[i]) < 0.5){
+	if(jt4Calopt[i] > maxDi4CaloAnaPt){
+	  twoDi4CaloAnaPt = maxDi4CaloAnaPt;
+	  //	  twoDi4CaloAnaEta = maxDi4CaloAnaEta;
+
+	  maxDi4CaloAnaPt = jt4Calopt[i];
+	  maxDi4CaloAnaEta = jt4Caloeta[i];
+	}
+	else if(jt4Calopt[i] > twoDi4CaloAnaPt){
+          twoDi4CaloAnaPt = jt4Calopt[i];
+	  //          twoDi4CaloAnaEta = jt4Caloeta[i];
+	}
       }
     }
 
@@ -370,11 +374,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       }
     }
 
-    Double_t trigOfflinePt[nTrigType] = {maxTrkPt, max3CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt};
-    Double_t trigOfflineEta[nTrigType] = {maxTrkEta, max3CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta};
+    //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (2 of 2)
+    Double_t trigOfflinePt[nTrigType] = {maxTrkPt, max3CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt, maxDi4CaloAnaPt};
+    Double_t trigOfflineEta[nTrigType] = {maxTrkEta, max3CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta, maxDi4CaloAnaEta};
+    Bool_t trigCond[nTrigType] = {true, true, true, true, twoDi4CaloAnaPt > 55.0};
 
     for(Int_t iter = 0; iter < nTrigType; iter++){
-      if(trigOfflinePt[iter] > 0){
+      if(trigOfflinePt[iter] > 0 && trigCond[iter]){
 	histsPt_p[iter][0]->Fill(trigOfflinePt[iter]);
 	histsEta_p[iter][0]->Fill(trigOfflineEta[iter]);
 
@@ -393,10 +399,10 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   std::cout << "Trigger fires: " << std::endl;
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
-    std::cout << "  Trigger Type: " << trigType[iter] << std::endl;
+    std::cout << "  Trigger Type, raw #, rate matched (Hz), rate unmatched (Hz): " << trigType[iter] << std::endl;
     
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
-      std::cout << "    " << trigName[iter][iter2] << ": " << nTrigFire[iter][iter2] << std::endl;
+      std::cout << "    " << trigName[iter][iter2] << ": " << nTrigFire[iter][iter2] << ", " << nTrigFire[iter][iter2]*30000./matched << ", " << nTrigFire[iter][iter2]*30000./HLTTree->GetEntries() << std::endl;
     }
   }
 
@@ -413,7 +419,17 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
   }
 
-  TFile* outFile_p = new TFile(outFile.c_str(), "UPDATE");
+  std::string outName = inHLTFile;
+  const std::string inString = ".root";
+  const std::string outString = "_HIST.root";
+  std::size_t strIndex = 0;
+
+  strIndex = outName.find(inString);
+  if(!(strIndex == std::string::npos)){
+    outName.replace(strIndex, inString.length(), outString); 
+  }
+
+  TFile* outFile_p = new TFile(outName.c_str(), "UPDATE");
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     histsPt_p[iter][0]->Write("", TObject::kOverwrite);
@@ -452,8 +468,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
 int main(int argc, char *argv[])
 {
-  if(argc != 5){
-    std::cout << "Usage: matchTrigTree_HI <inHLTFile> <inForestFile> <inTrigFileName> <outFile>" << std::endl;
+  if(argc != 4){
+    std::cout << "Usage: matchTrigTree_HI <inHLTFile> <inForestFile> <inTrigFileName>" << std::endl;
     std::cout << "argNum: " << argc << std::endl;
     for(Int_t iter = 0; iter < argc; iter++){
       std::cout << "arg " << iter << ": " << argv[iter] << std::endl;
@@ -464,7 +480,7 @@ int main(int argc, char *argv[])
 
   int rStatus = -1;
 
-  rStatus = matchTrigTree_HI(argv[1], argv[2], argv[3], argv[4]);
+  rStatus = matchTrigTree_HI(argv[1], argv[2], argv[3]);
 
   return rStatus;
 }

@@ -20,8 +20,10 @@ void claverCanvasSaving(TCanvas* c, TString s,TString format="gif"){
   return;
 }
 
-int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFileName, const std::string outFile)
+int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFileName)
 {
+  gStyle->SetOptStat(0);
+
   std::string buffer;
   std::vector<std::string> listOfTrig;
   int nLines = 0;
@@ -45,10 +47,15 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   std::cout << "Trigger List Loaded" << std::endl;
 
-  const Int_t nTrigType = 4;
-  const std::string trigType[4] = {"TRK", "3JET", "4JET", "GAMMA"};
-  Int_t trigTypeCount[nTrigType] = {0, 0, 0, 0};
-  Bool_t trigTypeBool[nTrigType] = {false, false, false, false};
+  const Int_t nTrigType = 5;
+  const std::string trigType[nTrigType] = {"TRK", "3JET", "4JET", "GAMMA", "4DIJET"};
+  Int_t trigTypeCount[nTrigType];
+  Bool_t trigTypeBool[nTrigType];
+
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    trigTypeCount[iter] = 0;
+    trigTypeBool[iter] = false;
+  }
 
   for(Int_t iter = 0; iter < (Int_t)(listOfTrig.size()); iter++){
     std::cout << listOfTrig[iter] << std::endl;
@@ -143,7 +150,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
       aPt_p[iter][iter2]->SetMarkerColor(trigColors[iter2]);
 
       if(iter2 == 0){
-	TH1F* hEmpty = new TH1F("hEmpty", "p_{T}^{reco};Efficiency", aPt_p[iter][iter2]->GetN(), aPt_p[iter][iter2]->GetXaxis()->GetXmin(), aPt_p[iter][iter2]->GetXaxis()->GetXmax());
+	TH1F* hEmpty = new TH1F("hEmpty", ";p_{T}^{reco};Efficiency", aPt_p[iter][iter2]->GetN(), aPt_p[iter][iter2]->GetXaxis()->GetXmin(), aPt_p[iter][iter2]->GetXaxis()->GetXmax());
 	hEmpty->SetMaximum(1.1);
 	hEmpty->SetMinimum(0.0);
 	hEmpty->DrawCopy();
@@ -166,7 +173,18 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   std::cout << error << std::endl;
   error++;
 
-  TFile* outFile_p = new TFile(outFile.c_str(), "UPDATE");
+  std::string outName = inHistFile;
+  const std::string inString = "HIST";
+  const std::string outString = "PLOT";
+  std::size_t strIndex = 0;
+
+  strIndex = outName.find(inString);
+  if(!(strIndex == std::string::npos)){
+    outName.replace(strIndex, inString.length(), outString);
+  }
+
+
+  TFile* outFile_p = new TFile(outName.c_str(), "UPDATE");
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     trigCanvPt_p[iter]->Write("", TObject::kOverwrite);
@@ -194,8 +212,8 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
 int main(int argc, char *argv[])
 {
-  if(argc != 4){
-    std::cout << "Usage: plotTrigTurnOn_HI <inHistFile> <inTrigFileName> <outFile>" << std::endl;
+  if(argc != 3){
+    std::cout << "Usage: plotTrigTurnOn_HI <inHistFile> <inTrigFileName>" << std::endl;
     std::cout << "argNum: " << argc << std::endl;
     for(Int_t iter = 0; iter < argc; iter++){
       std::cout << "arg " << iter << ": " << argv[iter] << std::endl;
@@ -206,7 +224,7 @@ int main(int argc, char *argv[])
 
   int rStatus = -1;
 
-  rStatus = plotTrigTurnOn_HI(argv[1], argv[2], argv[3]);
+  rStatus = plotTrigTurnOn_HI(argv[1], argv[2]);
 
   return rStatus;
 }

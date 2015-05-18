@@ -11,16 +11,16 @@ Use:
   Need a file with TTree of HLT triggers to be tested and HiForest of matching offline objects
 
 To create exectuable of histogram maker:
-  "sh compileTrigMacro.sh matchTrigTree_HI.C"
+  sh compileTrigMacro.sh matchTrigTree_HI.C
 
 To execute histogram maker:
-  "matchTrigTree_HI.exe <inputHLTFile> <inputMatchingHiForestFile> <inputTriggerTextFile> <outPutFileName>
+  ./matchTrigTree_HI.exe <inputHLTFile> <inputMatchingHiForestFile> <inputTriggerTextFile> <outPutFileName>
 
 To create executable of plotting macro:
-  "sh compileTrigMacro.sh plotTrigTurnOn_HI.C"
+  sh compileTrigMacro.sh plotTrigTurnOn_HI.C
 
 To execute plotter:
-  "plotTrigTurnOn.exe <inputHistFile> <inputTriggerTextFile> <outPutFileName>"
+  ./plotTrigTurnOn.exe <inputHistFile> <inputTriggerTextFile> <outPutFileName>
 
 Notes: 
   * Compiler automatically makes directory "pdfDir" since plotting macro writes pdf to said dir
