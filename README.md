@@ -1,5 +1,6 @@
 # HLTMacros
 Generic Analysis Macros for CMS Triggers
+Works in CMSSW_7_4_0_pre7
 
 Contains:
   compileTrigMacro.sh: Compiles both C++ macros
