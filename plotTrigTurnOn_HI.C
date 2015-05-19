@@ -105,9 +105,9 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   TCanvas* trigCanvPt_p[nTrigType];
   TGraphAsymmErrors* aPt_p[nTrigType][maxNTrig2];
 
-  //  std::string canvRateName[nTrigType];
-  //  TCanvas* trigCanvRate_p[nTrigType];
-  //  TH1F* ratesUnmatched_p[nTrigType];
+  std::string canvRateName[nTrigType];
+  TCanvas* trigCanvRate_p[nTrigType];
+  TH1F* ratesUnmatched_p[nTrigType];
 
   //ONLY EDITING SHOULD OCCUR HERE
   const Int_t maxPlotTrig = 5;
@@ -149,6 +149,36 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     delete oneLine_p;
   }
 
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    canvRateName[iter] =  Form("%s_%d_%d_Rate_c", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter] - 1]);
+
+    trigCanvRate_p[iter] = new TCanvas(canvRateName[iter].c_str(), canvRateName[iter].c_str(), 700, 700);
+    trigCanvRate_p[iter]->cd();
+
+    ratesUnmatched_p[iter] = (TH1F*)inFile_p->Get(Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]));
+
+
+    TH1F* hEmpty = new TH1F("hEmpty", Form(";p_{T,%s}^{reco};Rate (Hz)", trigType[iter].c_str()), ratesUnmatched_p[iter]->GetNbinsX(), ratesUnmatched_p[iter]->GetXaxis()->GetXmin(), ratesUnmatched_p[iter]->GetXaxis()->GetXmax());
+    hEmpty->GetXaxis()->CenterTitle();
+    hEmpty->GetYaxis()->CenterTitle();
+    hEmpty->SetMaximum(ratesUnmatched_p[iter]->GetMaximum() + 10*TMath::Sqrt(ratesUnmatched_p[iter]->GetMaximum()));
+    if(hEmpty->GetMaximum() < 100) hEmpty->SetMaximum(100);
+    hEmpty->SetMinimum(0.5);
+    hEmpty->DrawCopy();
+    delete hEmpty;
+
+    ratesUnmatched_p[iter]->DrawCopy("E1 SAME");
+    gPad->SetLogy();
+
+    TLine* tenLine_p = new TLine(ratesUnmatched_p[iter]->GetXaxis()->GetXmin(), 10, ratesUnmatched_p[iter]->GetXaxis()->GetXmax(), 10);
+    tenLine_p->SetLineStyle(2);
+    tenLine_p->DrawClone();
+
+    tenLine_p->DrawLine(ratesUnmatched_p[iter]->GetXaxis()->GetXmin(), 1, ratesUnmatched_p[iter]->GetXaxis()->GetXmax(), 1);
+
+    delete tenLine_p;
+  }
+
   std::string outName = inHistFile;
   const std::string inString = "HIST";
   const std::string outString = "PLOT";
@@ -164,7 +194,9 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     trigCanvPt_p[iter]->Write("", TObject::kOverwrite);
+    trigCanvRate_p[iter]->Write("", TObject::kOverwrite);
     claverCanvasSaving(trigCanvPt_p[iter], Form("pdfDir/%s", canvPtName[iter].c_str()), "pdf");
+    claverCanvasSaving(trigCanvRate_p[iter], Form("pdfDir/%s", canvRateName[iter].c_str()), "pdf");
   }
 
   outFile_p->Close();
@@ -172,6 +204,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     delete trigCanvPt_p[iter];
+    delete trigCanvRate_p[iter];
   }
 
   inFile_p->Close();

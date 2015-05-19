@@ -283,8 +283,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       max += minDiff;
     }
 
-    ratesMatched_p[iter] = new TH1F(Form("ratesMatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), Form("ratesMatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), nBins, min, max);
-    ratesUnmatched_p[iter] = new TH1F(Form("ratesUnmatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), Form("ratesUnmatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), nBins, min, max);
+    ratesMatched_p[iter] = new TH1F(Form("ratesMatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), Form("ratesMatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), nBins, min, max);
+    ratesUnmatched_p[iter] = new TH1F(Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), nBins, min, max);
 
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       histsPt_p[iter][iter2+1] = (TH1F*)histsPt_p[iter][0]->Clone(Form("%s_%s_pt", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
