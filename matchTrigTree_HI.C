@@ -5,6 +5,7 @@
 #include <TGraphAsymmErrors.h>
 #include <TH1D.h>
 #include <iostream>
+#include <iomanip>
 #include <TStyle.h>
 #include "TH1F.h"
 #include "TMath.h"
@@ -22,13 +23,11 @@ const TString AnaTrkTreename = "anaTrack/trackTree";
 
 const TString HLTFilename = "openHLT_20150508_HIMinBias502_740F.root";
 
-const int nBins = 200;
-const double maxpt = 200;
-
 int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile, const std::string inTrigFileName)
 {
   std::string buffer;
   std::vector<std::string> listOfTrig;
+  std::vector<Int_t> listOfThresh;
   Int_t nTrigTypeTemp = 0;
   int nLines = 0;
   ifstream* inTrigFile = new ifstream(inTrigFileName.data());
@@ -49,38 +48,33 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       nLines++;
     }
   }
-
+  delete inTrigFile;
   std::cout << "Trigger List Loaded" << std::endl;
 
   const Int_t nTrigType = nTrigTypeTemp;
   std::string trigType[nTrigType];
   Int_t trigTypeCount[nTrigType];
 
-  delete inTrigFile;
-  inTrigFile = new ifstream(inTrigFileName.data());
   nLines = 0;
 
-  while(true){
-    *inTrigFile >> buffer;
-    if(inTrigFile->eof()) break;
-    if(std::string::npos== buffer.find("HLT")){
-      trigType[nLines] = buffer;
+  for(Int_t iter = 0; iter < (Int_t)listOfTrig.size(); iter++){
+    if(std::string::npos == listOfTrig[iter].find("HLT")){
+      trigType[nLines] = listOfTrig[iter];
+      trigTypeCount[nLines] = 0;
       nLines++;
+      listOfThresh.push_back(0);
     }
-  }
+    else{
+      trigTypeCount[nLines-1]++;
 
-  delete inTrigFile;
-  nLines = 0;
-
-  for(Int_t iter = 0; iter < nTrigType; iter++){
-    trigTypeCount[iter] = 0;
-  }
-
-  for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
-    std::cout << listOfTrig[iter] << std::endl;
-
-    if(std::string::npos== listOfTrig[iter].find("HLT")) nLines++;
-    else trigTypeCount[nLines]++;
+      std::size_t strIndex = 0;
+      while(true){
+	strIndex = listOfTrig[iter].find(",");
+	if(strIndex == std::string::npos) break;
+	listOfThresh.push_back(std::stoi(listOfTrig[iter].substr(strIndex+1)));
+	listOfTrig[iter].replace(strIndex, std::string::npos, "");
+      }      
+    }
   }
 
   TFile *HLTFile_p =  new TFile(inHLTFile.c_str(), "READ");
@@ -96,6 +90,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   const Int_t maxNTrig2 = maxNTrig;
 
   std::string trigName[nTrigType][maxNTrig2];
+  Int_t trigThresh[nTrigType][maxNTrig2];
   Int_t trigVal[nTrigType][maxNTrig2];
   Int_t nTrigFire[nTrigType][maxNTrig2];
 
@@ -109,6 +104,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
     else{
       trigName[nLines][tempPosIter] = listOfTrig[iter];
+      trigThresh[nLines][tempPosIter] = listOfThresh[iter];
       trigVal[nLines][tempPosIter] = 0;
       nTrigFire[nLines][tempPosIter] = 0;
       tempPosIter++;
@@ -139,6 +135,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   TTree *AnaHITree = (TTree*)AnaFile_p->Get(AnaHITreename); 
   TTree *AnaSkimTree = (TTree*)AnaFile_p->Get(AnaSkimTreename);
   TTree *AnaTrkTree = (TTree*)AnaFile_p->Get(AnaTrkTreename);
+  
 
   Int_t ana_event, ana_lumi;//, ana_run, ana_lumi;
   Int_t hiBin;
@@ -253,15 +250,41 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (1 of 2)
 
-  const Int_t nPtBins[nTrigType] = {100, 200, 200, 100, 200};
-  const Int_t maxPt[nTrigType] = {100, 200, 200, 100, 200};
+  const Int_t nPtBins[nTrigType] = {100, 200, 200, 200, 100, 100, 200, 200};
+  const Int_t maxPt[nTrigType] = {100, 200, 200, 200, 100, 100, 200, 200};
   const Int_t nEtaBins = 50;
   TH1F *histsPt_p[nTrigType][maxNTrig2+1], *histsEta_p[nTrigType][maxNTrig2+1];
+  TH1F* ratesMatched_p[nTrigType];
+  TH1F* ratesUnmatched_p[nTrigType];
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     histsPt_p[iter][0] = new TH1F(Form("leading%s_pt", trigType[iter].c_str()), Form("leading%s_pt", trigType[iter].c_str()), nPtBins[iter], 0.0, maxPt[iter]);
 
     histsEta_p[iter][0] = new TH1F(Form("leading%s_eta", trigType[iter].c_str()), Form("leading%s_eta", trigType[iter].c_str()), nEtaBins, -5.0, 5.0);
+
+    Int_t max = trigThresh[iter][trigTypeCount[iter]-1];
+    Int_t min = trigThresh[iter][0];
+    Float_t minDiff = trigThresh[iter][1] - trigThresh[iter][0];
+
+    for(Int_t iter2 = 1; iter2 < trigTypeCount[iter]-1; iter2++){
+      if(trigThresh[iter][iter2+1] - trigThresh[iter][iter2] < minDiff) minDiff = trigThresh[iter][iter2+1] - trigThresh[iter][iter2];
+    }
+
+    minDiff /= 2;
+
+    Int_t nBins = (max+minDiff - (min-minDiff))/(minDiff*2);
+    if(trigTypeCount[iter] == 1){
+      nBins = 1;
+      min = trigThresh[iter][0] - 20;
+      max = trigThresh[iter][0] + 20;
+    }
+    else{
+      min -= minDiff;
+      max += minDiff;
+    }
+
+    ratesMatched_p[iter] = new TH1F(Form("ratesMatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), Form("ratesMatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), nBins, min, max);
+    ratesUnmatched_p[iter] = new TH1F(Form("ratesUnmatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), Form("ratesUnmatched_%s_%s", trigName[iter][0].c_str(), trigType[iter].c_str()), nBins, min, max);
 
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       histsPt_p[iter][iter2+1] = (TH1F*)histsPt_p[iter][0]->Clone(Form("%s_%s_pt", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
@@ -341,8 +364,17 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     Double_t twoDi4CaloAnaPt = -1;
     //    Double_t twoDi4CaloAnaEta = -100;
 
+    Double_t maxTri4CaloAnaPt = -1;
+    Double_t maxTri4CaloAnaEta = -100;
+
+    Double_t twoTri4CaloAnaPt = -1;
+    //    Double_t twoTri4CaloAnaEta = -100;
+
+    Double_t threeTri4CaloAnaPt = -1;
+    //    Double_t threeTri4CaloAnaEta = -100;
+
     for(int i = 0; i < n4Caloref; ++i){
-      if(fabs(jt4Caloeta[i]) > 2.0) continue;
+      if(fabs(jt4Caloeta[i]) > 5.0) continue;
       if(jt4Calopt[i] > max4CaloAnaPt){
 	max4CaloAnaPt = jt4Calopt[i];
 	max4CaloAnaEta = jt4Caloeta[i];
@@ -361,6 +393,28 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 	  //          twoDi4CaloAnaEta = jt4Caloeta[i];
 	}
       }
+
+      if(jt4Calopt[i] > maxTri4CaloAnaPt){
+	threeTri4CaloAnaPt = twoTri4CaloAnaPt;
+	//	  threeTri4CaloAnaEta = twoTri4CaloAnaEta;
+
+	twoTri4CaloAnaPt = maxTri4CaloAnaPt;
+	//	  twoTri4CaloAnaEta = maxTri4CaloAnaEta;
+	
+	maxTri4CaloAnaPt = jt4Calopt[i];
+	maxTri4CaloAnaEta = jt4Caloeta[i];
+      }
+      else if(jt4Calopt[i] > twoTri4CaloAnaPt){
+        threeTri4CaloAnaPt = twoTri4CaloAnaPt;
+	//          threeTri4CaloAnaEta = twoTri4CaloAnaEta;
+
+	twoTri4CaloAnaPt = jt4Calopt[i];
+	//          twoTri4CaloAnaEta = jt4Caloeta[i];
+      }
+      else if(jt4Calopt[i] > threeTri4CaloAnaPt){
+        threeTri4CaloAnaPt = jt4Calopt[i];
+        //          threeTri4CaloAnaEta = jt4Caloeta[i];                                                  
+      }
     }
 
     Double_t maxPhotonAnaPt = -1;
@@ -375,15 +429,15 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
 
     //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (2 of 2)
-    const Int_t nOfflineObj = 5;
+    const Int_t nOfflineObj = 8;
     if(nOfflineObj != nTrigType){
       std::cout << "ERROR: OFFLINE OBJECT NUMBER MUST MATCH NUMBER OF TRIGGER 'TYPES' IN INPUT TEXT FILE; RETURN 1" << std::endl;
       return 1;
     }
 
-    Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, max3CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt, maxDi4CaloAnaPt};
-    Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, max3CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta, maxDi4CaloAnaEta};
-    Bool_t trigCond[nOfflineObj] = {true, true, true, true, twoDi4CaloAnaPt > 55.0};
+    Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, max3CaloAnaPt, max4CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt, maxPhotonAnaPt, maxDi4CaloAnaPt, maxTri4CaloAnaPt};
+    Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, max3CaloAnaEta, max4CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta, maxPhotonAnaEta, maxDi4CaloAnaEta, maxTri4CaloAnaEta};
+    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, twoDi4CaloAnaPt > 55.0, twoTri4CaloAnaPt > 65.0 && threeTri4CaloAnaPt > 65.0};
 
     for(Int_t iter = 0; iter < nTrigType; iter++){
       if(trigOfflinePt[iter] > 0 && trigCond[iter]){
@@ -408,7 +462,16 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     std::cout << "  Trigger Type, raw #, rate matched (Hz), rate unmatched (Hz): " << trigType[iter] << std::endl;
     
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
-      std::cout << "    " << trigName[iter][iter2] << ": " << nTrigFire[iter][iter2] << ", " << nTrigFire[iter][iter2]*30000./matched << ", " << nTrigFire[iter][iter2]*30000./HLTTree->GetEntries() << std::endl;
+      std::cout << "    " << trigName[iter][iter2] << ": " << nTrigFire[iter][iter2] << ", " << std::setprecision(5) << nTrigFire[iter][iter2]*30000./matched << ", " << std::setprecision(5) << nTrigFire[iter][iter2]*30000./HLTTree->GetEntries() << std::endl;
+
+      Int_t bin = ratesMatched_p[iter]->FindBin(trigThresh[iter][iter2]);
+      Float_t num = nTrigFire[iter][iter2]*30000.;
+      Float_t numErr = (nTrigFire[iter][iter2] + TMath::Sqrt(nTrigFire[iter][iter2]))*30000.;
+
+      ratesMatched_p[iter]->SetBinContent(bin, num/matched);
+      ratesMatched_p[iter]->SetBinError(bin, numErr/matched - num/matched);
+      ratesUnmatched_p[iter]->SetBinContent(bin, num/HLTTree->GetEntries());
+      ratesUnmatched_p[iter]->SetBinError(bin, numErr/HLTTree->GetEntries() - num/HLTTree->GetEntries());
     }
   }
 
@@ -448,6 +511,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       aPt_p[iter][iter2]->Write("", TObject::kOverwrite);
       aEta_p[iter][iter2]->Write("", TObject::kOverwrite);
     }
+    ratesMatched_p[iter]->Write("", TObject::kOverwrite);
+    ratesUnmatched_p[iter]->Write("", TObject::kOverwrite);
   }
 
   outFile_p->Close();
@@ -461,6 +526,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       delete aPt_p[iter][iter2];
       delete aEta_p[iter][iter2];
     }
+    delete ratesMatched_p[iter];
+    delete ratesUnmatched_p[iter];
   }
 
   AnaFile_p->Close();

@@ -26,6 +26,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   std::string buffer;
   std::vector<std::string> listOfTrig;
+  std::vector<Int_t> listOfThresh;
   Int_t nTrigTypeTemp = 0;
   int nLines = 0;
   ifstream* inTrigFile = new ifstream(inTrigFileName.data());
@@ -45,38 +46,33 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
       nLines++;
     }
   }
-
+  delete inTrigFile;
   std::cout << "Trigger List Loaded" << std::endl;
 
   const Int_t nTrigType = nTrigTypeTemp;
   std::string trigType[nTrigType];
   Int_t trigTypeCount[nTrigType];
 
-  delete inTrigFile;
-  inTrigFile = new ifstream(inTrigFileName.data());
   nLines = 0;
 
-  while(true){
-    *inTrigFile >> buffer;
-    if(inTrigFile->eof()) break;
-    if(std::string::npos== buffer.find("HLT")){
-      trigType[nLines] = buffer;
+  for(Int_t iter = 0; iter < (Int_t)listOfTrig.size(); iter++){
+    if(std::string::npos == listOfTrig[iter].find("HLT")){
+      trigType[nLines] = listOfTrig[iter];
+      trigTypeCount[nLines] = 0;
       nLines++;
+      listOfThresh.push_back(0);
     }
-  }
+    else{
+      trigTypeCount[nLines-1]++;
 
-  delete inTrigFile;
-  nLines = 0;
-
-  for(Int_t iter = 0; iter < nTrigType; iter++){
-    trigTypeCount[iter] = 0;
-  }
-
-  for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
-    std::cout << listOfTrig[iter] << std::endl;
-
-    if(std::string::npos== listOfTrig[iter].find("HLT")) nLines++;
-    else trigTypeCount[nLines]++;
+      std::size_t strIndex = 0;
+      while(true){
+        strIndex = listOfTrig[iter].find(",");
+        if(strIndex == std::string::npos) break;
+        listOfThresh.push_back(std::stoi(listOfTrig[iter].substr(strIndex+1)));
+        listOfTrig[iter].replace(strIndex, std::string::npos, "");
+      }
+    }
   }
 
   Int_t maxNTrig = -1;
@@ -86,6 +82,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   const Int_t maxNTrig2 = maxNTrig;
 
   std::string trigName[nTrigType][maxNTrig2];
+  Int_t trigThresh[nTrigType][maxNTrig2];
 
   nLines = 0;
   Int_t tempPosIter = 0;
@@ -97,6 +94,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     }
     else{
       trigName[nLines][tempPosIter] = listOfTrig[iter];
+      trigThresh[nLines][tempPosIter] = listOfThresh[iter];
       tempPosIter++;
     }
   }
@@ -106,13 +104,18 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   std::string canvPtName[nTrigType];
   TCanvas* trigCanvPt_p[nTrigType];
   TGraphAsymmErrors* aPt_p[nTrigType][maxNTrig2];
+
+  //  std::string canvRateName[nTrigType];
+  //  TCanvas* trigCanvRate_p[nTrigType];
+  //  TH1F* ratesUnmatched_p[nTrigType];
+
   //ONLY EDITING SHOULD OCCUR HERE
   const Int_t maxPlotTrig = 5;
   const Int_t trigColors[5] = {1, kBlue, kRed, kYellow+1, kMagenta};
   TLegend* trigLeg_p[nTrigType];
 
   for(Int_t iter = 0; iter < nTrigType; iter++){      
-    canvPtName[iter] = Form("%s_%s_pt_c", trigType[iter].c_str(), trigName[iter][0].c_str());
+    canvPtName[iter] = Form("%s_%d_%d_pt_c", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter] - 1]);
     trigCanvPt_p[iter] = new TCanvas(canvPtName[iter].c_str(), canvPtName[iter].c_str(), 700, 700);
     trigCanvPt_p[iter]->cd();
     trigLeg_p[iter] = new TLegend(0.65, 0.20, 0.98, 0.45);
@@ -136,7 +139,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
       }
 
       aPt_p[iter][iter2]->Draw("P E");
-      trigLeg_p[iter]->AddEntry(aPt_p[iter][iter2], trigName[iter][iter2].c_str(), "P L");
+      trigLeg_p[iter]->AddEntry(aPt_p[iter][iter2], Form("%s, %d", trigType[iter].c_str(), trigThresh[iter][iter2]), "P L");
     }
 
     TLine* oneLine_p = new TLine(aPt_p[iter][0]->GetXaxis()->GetXmin(), 1, aPt_p[iter][0]->GetXaxis()->GetXmax(), 1);
