@@ -20,6 +20,7 @@ const TString AnaPhotonTreename = "multiPhotonAnalyzer/photon";
 const TString AnaHITreename = "hiEvtAnalyzer/HiTree";
 const TString AnaSkimTreename = "skimanalysis/HltTree";
 const TString AnaTrkTreename = "anaTrack/trackTree";
+const TString AnaGenTreename = "HiGenParticleAna/hi";
 
 const TString HLTFilename = "openHLT_20150508_HIMinBias502_740F.root";
 
@@ -59,6 +60,14 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   for(Int_t iter = 0; iter < (Int_t)listOfTrig.size(); iter++){
     if(std::string::npos == listOfTrig[iter].find("HLT")){
+
+      std::size_t strIndex = 0;
+      while(true){
+        strIndex = listOfTrig[iter].find(",");
+        if(strIndex == std::string::npos) break;
+        listOfTrig[iter].replace(strIndex, std::string::npos, "");
+      }
+
       trigType[nLines] = listOfTrig[iter];
       trigTypeCount[nLines] = 0;
       nLines++;
@@ -135,6 +144,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   TTree *AnaHITree = (TTree*)AnaFile_p->Get(AnaHITreename); 
   TTree *AnaSkimTree = (TTree*)AnaFile_p->Get(AnaSkimTreename);
   TTree *AnaTrkTree = (TTree*)AnaFile_p->Get(AnaTrkTreename);
+  TTree *AnaGenTree = (TTree*)AnaFile_p->Get(AnaGenTreename);
   
 
   Int_t ana_event, ana_lumi;//, ana_run, ana_lumi;
@@ -146,6 +156,11 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   Int_t nTrk;
   Bool_t trkFake[maxTrk];
   Float_t trkPt[maxTrk], trkPhi[maxTrk], trkEta[maxTrk];
+
+  const Int_t maxGen = 100000;
+  Int_t nGen;
+  Float_t genPt[maxGen], genPhi[maxGen], genEta[maxGen];
+  Int_t genPDG[maxGen];
 
   const Int_t maxJt = 500;
   Int_t n3Caloref;
@@ -189,6 +204,17 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   AnaTrkTree->SetBranchAddress("trkPhi", trkPhi);
   AnaTrkTree->SetBranchAddress("trkEta", trkEta);
 
+  AnaGenTree->SetBranchStatus("*", 0);
+  AnaGenTree->SetBranchStatus("mult", 1);
+  AnaGenTree->SetBranchStatus("pt", 1);
+  AnaGenTree->SetBranchStatus("phi", 1);
+  AnaGenTree->SetBranchStatus("eta", 1);
+  AnaGenTree->SetBranchStatus("pdg", 1);
+  AnaGenTree->SetBranchAddress("mult", &nGen);
+  AnaGenTree->SetBranchAddress("pt", genPt);
+  AnaGenTree->SetBranchAddress("phi", genPhi);
+  AnaGenTree->SetBranchAddress("eta", genEta);
+  AnaGenTree->SetBranchAddress("pdg", genPDG);
 
   Ana3CaloTree->SetBranchStatus("*", 0);
   Ana3CaloTree->SetBranchStatus("nref", 1);
@@ -250,17 +276,16 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (1 of 2)
 
-  const Int_t nPtBins[nTrigType] = {100, 200, 200, 200, 100, 100, 200, 200};
-  const Int_t maxPt[nTrigType] = {100, 200, 200, 200, 100, 100, 200, 200};
+  const Int_t nPtBins[nTrigType] = {100, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200};
+  const Int_t maxPt[nTrigType] = {100, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200};
   const Int_t nEtaBins = 50;
-  TH1F *histsPt_p[nTrigType][maxNTrig2+1], *histsEta_p[nTrigType][maxNTrig2+1];
+  TH1F *histsPt_p[nTrigType][maxNTrig2+1], *histsEta_p[nTrigType][maxNTrig2], *histsEtaTrig_p[nTrigType][maxNTrig2];
+
   TH1F* ratesMatched_p[nTrigType];
   TH1F* ratesUnmatched_p[nTrigType];
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     histsPt_p[iter][0] = new TH1F(Form("leading%s_pt", trigType[iter].c_str()), Form("leading%s_pt", trigType[iter].c_str()), nPtBins[iter], 0.0, maxPt[iter]);
-
-    histsEta_p[iter][0] = new TH1F(Form("leading%s_eta", trigType[iter].c_str()), Form("leading%s_eta", trigType[iter].c_str()), nEtaBins, -5.0, 5.0);
 
     Int_t max = trigThresh[iter][trigTypeCount[iter]-1];
     Int_t min = trigThresh[iter][0];
@@ -287,9 +312,11 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     ratesUnmatched_p[iter] = new TH1F(Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), nBins, min, max);
 
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
-      histsPt_p[iter][iter2+1] = (TH1F*)histsPt_p[iter][0]->Clone(Form("%s_%s_pt", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
+      histsPt_p[iter][iter2+1] = (TH1F*)histsPt_p[iter][0]->Clone(Form("%s_%s_%d_pt", trigName[iter][iter2].c_str(), trigType[iter].c_str(), trigThresh[iter][iter2]));
 
-      histsEta_p[iter][iter2+1] = (TH1F*)histsEta_p[iter][0]->Clone(Form("%s_%s_eta", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
+      histsEta_p[iter][iter2] = new TH1F(Form("leading_%s_%d_eta", trigType[iter].c_str(), trigThresh[iter][iter2]), Form("leading_%s_%d_eta", trigType[iter].c_str(), trigThresh[iter][iter2]), nEtaBins, -5.0, 5.0);
+
+      histsEtaTrig_p[iter][iter2] = new TH1F(Form("%s_%s_%d_eta", trigName[iter][iter2].c_str(), trigType[iter].c_str(), trigThresh[iter][iter2]), Form("%s_%s_%d_eta", trigName[iter][iter2].c_str(), trigType[iter].c_str(), trigThresh[iter][iter2]), nEtaBins, -5.0, 5.0);
     }
   }
 
@@ -328,6 +355,9 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
     for(Int_t iter = 0; iter < nTrigType; iter++){
       for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
+	//EDIT HERE FOR ANDING
+	if(iter >= nTrigType-2) trigVal[iter][iter2] = (trigVal[iter][trigTypeCount[iter]-1] && trigVal[2][iter2]);
+
 	if(trigVal[iter][iter2]) nTrigFire[iter][iter2]++;
       }
     }
@@ -343,6 +373,19 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 	maxTrkEta = trkEta[i];
       }
     }
+
+    Double_t maxMuPt = -1;
+    Double_t maxMuEta = -100;
+
+    for(int i = 0; i < nGen; i++){
+      if(TMath::Abs(genPDG[i]) != 13) continue;
+      if(fabs(genEta[i]) > 2.4) continue;
+      if(genPt[i] > maxMuPt){
+	maxMuPt = genPt[i];
+	maxMuEta = genEta[i];
+      }
+    }
+
   
     Double_t max3CaloAnaPt = -1;
     Double_t max3CaloAnaEta = -100;
@@ -429,25 +472,26 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
 
     //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (2 of 2)
-    const Int_t nOfflineObj = 8;
+    const Int_t nOfflineObj = 12;
     if(nOfflineObj != nTrigType){
       std::cout << "ERROR: OFFLINE OBJECT NUMBER MUST MATCH NUMBER OF TRIGGER 'TYPES' IN INPUT TEXT FILE; RETURN 1" << std::endl;
       return 1;
     }
 
-    Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, max3CaloAnaPt, max4CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt, maxPhotonAnaPt, maxDi4CaloAnaPt, maxTri4CaloAnaPt};
-    Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, max3CaloAnaEta, max4CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta, maxPhotonAnaEta, maxDi4CaloAnaEta, maxTri4CaloAnaEta};
-    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, twoDi4CaloAnaPt > 55.0, twoTri4CaloAnaPt > 65.0 && threeTri4CaloAnaPt > 65.0};
+    Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, max3CaloAnaPt, max3CaloAnaPt, max4CaloAnaPt, max4CaloAnaPt, max4CaloAnaPt, maxPhotonAnaPt, maxPhotonAnaPt, maxDi4CaloAnaPt, maxTri4CaloAnaPt, maxMuPt, maxMuPt};
+    Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, max3CaloAnaEta, max3CaloAnaEta, max4CaloAnaEta, max4CaloAnaEta, max4CaloAnaEta, maxPhotonAnaEta, maxPhotonAnaEta, maxDi4CaloAnaEta, maxTri4CaloAnaEta, maxMuEta, maxMuEta};
+    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, true, true, twoDi4CaloAnaPt > 55.0, twoTri4CaloAnaPt > 65.0 && threeTri4CaloAnaPt > 65.0, true, true};
 
     for(Int_t iter = 0; iter < nTrigType; iter++){
       if(trigOfflinePt[iter] > 0 && trigCond[iter]){
 	histsPt_p[iter][0]->Fill(trigOfflinePt[iter]);
-	histsEta_p[iter][0]->Fill(trigOfflineEta[iter]);
 
 	for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
+	  if(trigOfflinePt[iter] > trigThresh[iter][iter2]) histsEta_p[iter][iter2]->Fill(trigOfflineEta[iter]);
+
 	  if(trigVal[iter][iter2]){
 	    histsPt_p[iter][iter2+1]->Fill(trigOfflinePt[iter]);
-	    histsEta_p[iter][iter2+1]->Fill(trigOfflineEta[iter]);
+	    if(trigOfflinePt[iter] > trigThresh[iter][iter2]) histsEtaTrig_p[iter][iter2]->Fill(trigOfflineEta[iter]);
 	  }
 	}
       }
@@ -482,8 +526,9 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       aPt_p[iter][iter2] = new TGraphAsymmErrors();
       aPt_p[iter][iter2]->BayesDivide(histsPt_p[iter][iter2+1],histsPt_p[iter][0]);
       aPt_p[iter][iter2]->SetName(Form("%s_%s_pt_asymm", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
+
       aEta_p[iter][iter2] = new TGraphAsymmErrors();
-      aEta_p[iter][iter2]->BayesDivide(histsEta_p[iter][iter2+1],histsEta_p[iter][0]);
+      aEta_p[iter][iter2]->BayesDivide(histsEtaTrig_p[iter][iter2],histsEta_p[iter][iter2]);
       aEta_p[iter][iter2]->SetName(Form("%s_%s_eta_asymm", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
     }
   }
@@ -502,11 +547,11 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     histsPt_p[iter][0]->Write("", TObject::kOverwrite);
-    histsEta_p[iter][0]->Write("", TObject::kOverwrite);
 
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       histsPt_p[iter][iter2+1]->Write("", TObject::kOverwrite);
-      histsEta_p[iter][iter2+1]->Write("", TObject::kOverwrite);
+      histsEta_p[iter][iter2]->Write("", TObject::kOverwrite);
+      histsEtaTrig_p[iter][iter2]->Write("", TObject::kOverwrite);
 
       aPt_p[iter][iter2]->Write("", TObject::kOverwrite);
       aEta_p[iter][iter2]->Write("", TObject::kOverwrite);
@@ -520,9 +565,11 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     delete histsPt_p[iter][0];
-    delete histsEta_p[iter][0];
 
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
+      delete histsEta_p[iter][iter2];
+      delete histsEtaTrig_p[iter][iter2];
+
       delete aPt_p[iter][iter2];
       delete aEta_p[iter][iter2];
     }

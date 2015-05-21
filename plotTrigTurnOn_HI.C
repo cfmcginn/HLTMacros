@@ -14,6 +14,10 @@
 #include <vector>
 #include <fstream>
 
+//ONLY EDITING SHOULD OCCUR HERE
+const Int_t maxPlotTrig = 5;
+const Int_t trigColors[5] = {1, kBlue, kRed, kYellow+1, kMagenta};
+
 void claverCanvasSaving(TCanvas* c, TString s,TString format="gif"){
   TDatime* date = new TDatime();
   c->SaveAs(Form("%s_%d.%s",s.Data(),date->GetDate(), format.Data()));
@@ -51,12 +55,39 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   const Int_t nTrigType = nTrigTypeTemp;
   std::string trigType[nTrigType];
+  Int_t nTrigPlotTypeTemp = 0;
+  std::string trigPlotType[nTrigType];
+  std::string trigPlotType2[nTrigType];
+  Int_t trigPlotThresh[nTrigType][2];
+  Int_t trigPlotPos[nTrigType];
+  Int_t trigPlotCol[nTrigType];
+  
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    trigPlotPos[iter] = -1;
+  }
   Int_t trigTypeCount[nTrigType];
 
   nLines = 0;
 
   for(Int_t iter = 0; iter < (Int_t)listOfTrig.size(); iter++){
     if(std::string::npos == listOfTrig[iter].find("HLT")){
+
+      std::size_t strIndex = 0;
+      while(true){
+        strIndex = listOfTrig[iter].find(",");
+        if(strIndex == std::string::npos) break;
+        trigPlotType[nLines] = listOfTrig[iter].substr(strIndex+1);
+	Bool_t matchBool = false;
+	for(Int_t iter2 = 0; iter2 < nLines; iter2++){
+	  if(!strcmp(trigPlotType[nLines].c_str(), trigPlotType[iter2].c_str())){
+	    matchBool = true;
+	    break;
+	  }
+	}
+	if(!matchBool) nTrigPlotTypeTemp++;
+        listOfTrig[iter].replace(strIndex, std::string::npos, "");
+      }
+
       trigType[nLines] = listOfTrig[iter];
       trigTypeCount[nLines] = 0;
       nLines++;
@@ -76,9 +107,11 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   }
 
   Int_t maxNTrig = -1;
+  Int_t maxNum = 0;
   for(Int_t iter = 0; iter < nTrigType; iter++){
     if(trigTypeCount[iter] > maxNTrig) maxNTrig = trigTypeCount[iter];
   }
+  
   const Int_t maxNTrig2 = maxNTrig;
 
   std::string trigName[nTrigType][maxNTrig2];
@@ -99,25 +132,63 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     }
   }
 
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    if(trigPlotPos[iter] == -1){
+      trigPlotPos[iter] = maxNum;
+      trigPlotType2[maxNum] = trigPlotType[iter];
+      trigPlotThresh[maxNum][0] = trigThresh[iter][0];
+      trigPlotThresh[maxNum][1] = trigThresh[iter][trigTypeCount[iter] - 1];
+      trigPlotCol[iter] = 1;
+      maxNum++;
+    }
+    Int_t tempColPos = 1;
+    for(Int_t iter2 = iter+1; iter2 < nTrigType; iter2++){
+      if(!strcmp(trigPlotType[iter].c_str(), trigPlotType[iter2].c_str())){
+	if(trigPlotPos[iter2] == -1) trigPlotCol[iter2] = trigColors[tempColPos];
+	trigPlotPos[iter2] = trigPlotPos[iter];
+
+	std::cout << tempColPos << ", " << trigColors[tempColPos] << std::endl;
+
+	if(trigPlotThresh[maxNum][0] > trigThresh[iter][0]) trigPlotThresh[maxNum][0] = trigThresh[iter][0];
+	if(trigPlotThresh[maxNum][1] < trigThresh[iter][trigTypeCount[iter] - 1]) trigPlotThresh[maxNum][1] = trigThresh[iter][trigTypeCount[iter] - 1];
+
+	tempColPos++;
+      }
+    }
+  }
+
   TFile* inFile_p = new TFile(inHistFile.c_str(), "READ");
 
   std::string canvPtName[nTrigType];
   TCanvas* trigCanvPt_p[nTrigType];
   TGraphAsymmErrors* aPt_p[nTrigType][maxNTrig2];
 
-  std::string canvRateName[nTrigType];
-  TCanvas* trigCanvRate_p[nTrigType];
+  const Int_t nTrigPlotType = nTrigPlotTypeTemp;
+  std::string canvRateName[nTrigPlotType];
+  TCanvas* trigCanvRate_p[nTrigPlotType];
+  TH1F* hEmptyRate[nTrigPlotType];
+  Float_t maxXRate[nTrigPlotType];
+  Float_t minXRate[nTrigPlotType];
+  Float_t maxYRate[nTrigPlotType];
+  Float_t minYRate[nTrigPlotType];
   TH1F* ratesUnmatched_p[nTrigType];
 
-  //ONLY EDITING SHOULD OCCUR HERE
-  const Int_t maxPlotTrig = 5;
-  const Int_t trigColors[5] = {1, kBlue, kRed, kYellow+1, kMagenta};
+  for(Int_t iter = 0; iter < nTrigPlotType; iter++){
+    maxXRate[iter] = -1;
+    minXRate[iter] = 10000000;
+    maxYRate[iter] = -1;
+    minYRate[iter] = 10000000;
+  }
+
   TLegend* trigLeg_p[nTrigType];
+  TLegend* rateLeg_p[nTrigPlotType];
 
   for(Int_t iter = 0; iter < nTrigType; iter++){      
     canvPtName[iter] = Form("%s_%d_%d_pt_c", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter] - 1]);
     trigCanvPt_p[iter] = new TCanvas(canvPtName[iter].c_str(), canvPtName[iter].c_str(), 700, 700);
     trigCanvPt_p[iter]->cd();
+    trigCanvPt_p[iter]->SetTopMargin(0.01);
+    trigCanvPt_p[iter]->SetRightMargin(0.01);
     trigLeg_p[iter] = new TLegend(0.65, 0.20, 0.98, 0.45);
     trigLeg_p[iter]->SetFillColor(0);
     trigLeg_p[iter]->SetTextFont(43);
@@ -131,6 +202,9 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
       if(iter2 == 0){
 	TH1F* hEmpty = new TH1F("hEmpty", ";p_{T}^{reco};Efficiency", aPt_p[iter][iter2]->GetN(), aPt_p[iter][iter2]->GetXaxis()->GetXmin(), aPt_p[iter][iter2]->GetXaxis()->GetXmax());
+	hEmpty->GetXaxis()->CenterTitle();
+	hEmpty->GetYaxis()->CenterTitle();
+	hEmpty->GetYaxis()->SetTitleOffset(1.4);
 	hEmpty->SetMaximum(1.1);
 	hEmpty->SetMinimum(0.0);
 	hEmpty->DrawCopy();
@@ -149,32 +223,73 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     delete oneLine_p;
   }
 
-  for(Int_t iter = 0; iter < nTrigType; iter++){
-    canvRateName[iter] =  Form("%s_%d_%d_Rate_c", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter] - 1]);
+
+
+  for(Int_t iter = 0; iter < nTrigPlotType; iter++){
+    canvRateName[iter] =  Form("%s_%d_%d_Rate_c", trigPlotType2[iter].c_str(), trigPlotThresh[iter][0], trigPlotThresh[iter][1]);
 
     trigCanvRate_p[iter] = new TCanvas(canvRateName[iter].c_str(), canvRateName[iter].c_str(), 700, 700);
-    trigCanvRate_p[iter]->cd();
+    trigCanvRate_p[iter]->SetTopMargin(0.01);
+    trigCanvRate_p[iter]->SetRightMargin(0.01);
 
+    rateLeg_p[iter] = new TLegend(0.65, 0.70, 0.98, 0.95);
+    rateLeg_p[iter]->SetFillColor(0);
+    rateLeg_p[iter]->SetTextFont(43);
+    rateLeg_p[iter]->SetTextSize(16);
+  }
+
+  for(Int_t iter = 0; iter < nTrigType; iter++){
     ratesUnmatched_p[iter] = (TH1F*)inFile_p->Get(Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]));
 
+    if(maxXRate[trigPlotPos[iter]] < ratesUnmatched_p[iter]->GetXaxis()->GetXmax()) maxXRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetXaxis()->GetXmax();
+    if(minXRate[trigPlotPos[iter]] > ratesUnmatched_p[iter]->GetXaxis()->GetXmin()) minXRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetXaxis()->GetXmin();
 
-    TH1F* hEmpty = new TH1F("hEmpty", Form(";p_{T,%s}^{reco};Rate (Hz)", trigType[iter].c_str()), ratesUnmatched_p[iter]->GetNbinsX(), ratesUnmatched_p[iter]->GetXaxis()->GetXmin(), ratesUnmatched_p[iter]->GetXaxis()->GetXmax());
-    hEmpty->GetXaxis()->CenterTitle();
-    hEmpty->GetYaxis()->CenterTitle();
-    hEmpty->SetMaximum(ratesUnmatched_p[iter]->GetMaximum() + 10*TMath::Sqrt(ratesUnmatched_p[iter]->GetMaximum()));
-    if(hEmpty->GetMaximum() < 100) hEmpty->SetMaximum(100);
-    hEmpty->SetMinimum(0.5);
-    hEmpty->DrawCopy();
-    delete hEmpty;
+    if(maxYRate[trigPlotPos[iter]] < ratesUnmatched_p[iter]->GetMaximum()) maxYRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetMaximum();
+    if(minYRate[trigPlotPos[iter]] > ratesUnmatched_p[iter]->GetMinimum()) minYRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetMinimum();
+  }
+
+  for(Int_t iter = 0; iter < nTrigPlotType; iter++){
+    trigCanvRate_p[iter]->cd();
+
+    maxYRate[iter] += 10*TMath::Sqrt(maxYRate[iter]);
+    if(minYRate[iter] < .00001) minYRate[iter] = 0.5;
+    else if(minYRate[iter] > 1) minYRate[iter] -= TMath::Sqrt(minYRate[iter]);
+    else minYRate[iter] -= minYRate[iter]*minYRate[iter];
+
+    std::cout << iter << ", " << minXRate[iter] << ", " << maxXRate[iter] << ", " << minYRate[iter] << ", " << maxYRate[iter] << std::endl;
+
+    hEmptyRate[iter] = new TH1F(Form("hEmptyRate%d", iter), Form(";p_{T,%s}^{reco};Rate (Hz)", trigPlotType2[iter].c_str()), 10, minXRate[iter], maxXRate[iter]);
+    hEmptyRate[iter]->GetXaxis()->CenterTitle();
+    hEmptyRate[iter]->GetYaxis()->CenterTitle();
+    hEmptyRate[iter]->GetYaxis()->SetTitleOffset(1.4);
+    hEmptyRate[iter]->SetMaximum(maxYRate[iter]);
+    hEmptyRate[iter]->SetMinimum(minYRate[iter]);
+
+    hEmptyRate[iter]->DrawCopy();
+    rateLeg_p[iter]->Draw("SAME");
+    delete hEmptyRate[iter];
+    gPad->SetLogy();
+  }
+
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    trigCanvRate_p[trigPlotPos[iter]]->cd();
+
+    std::cout << iter << ", " << trigPlotPos[iter] << ", " << trigPlotCol[iter] << std::endl;
+
+    ratesUnmatched_p[iter]->SetMarkerStyle(20);
+    ratesUnmatched_p[iter]->SetMarkerSize(1);
+    ratesUnmatched_p[iter]->SetLineColor(trigPlotCol[iter]);
+    ratesUnmatched_p[iter]->SetMarkerColor(trigPlotCol[iter]);
 
     ratesUnmatched_p[iter]->DrawCopy("E1 SAME");
-    gPad->SetLogy();
 
-    TLine* tenLine_p = new TLine(ratesUnmatched_p[iter]->GetXaxis()->GetXmin(), 10, ratesUnmatched_p[iter]->GetXaxis()->GetXmax(), 10);
+    rateLeg_p[trigPlotPos[iter]]->AddEntry(ratesUnmatched_p[iter], Form("%s", trigType[iter].c_str()), "P L");
+
+    TLine* tenLine_p = new TLine(minXRate[trigPlotPos[iter]], 10, maxXRate[trigPlotPos[iter]], 10);
     tenLine_p->SetLineStyle(2);
-    tenLine_p->DrawClone();
+    if(10 > minYRate[trigPlotPos[iter]] && 10 < maxYRate[trigPlotPos[iter]]) tenLine_p->DrawClone();
 
-    tenLine_p->DrawLine(ratesUnmatched_p[iter]->GetXaxis()->GetXmin(), 1, ratesUnmatched_p[iter]->GetXaxis()->GetXmax(), 1);
+    if(1 > minYRate[trigPlotPos[iter]] && 1 < maxYRate[trigPlotPos[iter]]) tenLine_p->DrawLine(minXRate[trigPlotPos[iter]], 1, maxXRate[trigPlotPos[iter]], 1);
 
     delete tenLine_p;
   }
@@ -194,8 +309,11 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     trigCanvPt_p[iter]->Write("", TObject::kOverwrite);
-    trigCanvRate_p[iter]->Write("", TObject::kOverwrite);
     claverCanvasSaving(trigCanvPt_p[iter], Form("pdfDir/%s", canvPtName[iter].c_str()), "pdf");
+  }
+
+  for(Int_t iter = 0; iter < nTrigPlotType; iter++){
+    trigCanvRate_p[iter]->Write("", TObject::kOverwrite);
     claverCanvasSaving(trigCanvRate_p[iter], Form("pdfDir/%s", canvRateName[iter].c_str()), "pdf");
   }
 
@@ -204,6 +322,9 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     delete trigCanvPt_p[iter];
+  }
+
+  for(Int_t iter = 0; iter < nTrigPlotType; iter++){
     delete trigCanvRate_p[iter];
   }
 
