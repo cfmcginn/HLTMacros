@@ -15,8 +15,8 @@
 #include <fstream>
 
 //ONLY EDITING SHOULD OCCUR HERE
-const Int_t maxPlotTrig = 5;
-const Int_t trigColors[5] = {1, kBlue, kRed, kYellow+1, kMagenta};
+const Int_t maxPlotTrig = 7;
+const Int_t trigColors[7] = {1, kBlue, kRed, kYellow+1, kMagenta, kGreen+3, kCyan+2};
 
 void claverCanvasSaving(TCanvas* c, TString s,TString format="gif"){
   TDatime* date = new TDatime();
@@ -61,7 +61,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   Int_t trigPlotThresh[nTrigType][2];
   Int_t trigPlotPos[nTrigType];
   Int_t trigPlotCol[nTrigType];
-  
+
   for(Int_t iter = 0; iter < nTrigType; iter++){
     trigPlotPos[iter] = -1;
   }
@@ -147,8 +147,6 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 	if(trigPlotPos[iter2] == -1) trigPlotCol[iter2] = trigColors[tempColPos];
 	trigPlotPos[iter2] = trigPlotPos[iter];
 
-	std::cout << tempColPos << ", " << trigColors[tempColPos] << std::endl;
-
 	if(trigPlotThresh[maxNum][0] > trigThresh[iter][0]) trigPlotThresh[maxNum][0] = trigThresh[iter][0];
 	if(trigPlotThresh[maxNum][1] < trigThresh[iter][trigTypeCount[iter] - 1]) trigPlotThresh[maxNum][1] = trigThresh[iter][trigTypeCount[iter] - 1];
 
@@ -171,6 +169,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   Float_t minXRate[nTrigPlotType];
   Float_t maxYRate[nTrigPlotType];
   Float_t minYRate[nTrigPlotType];
+  Float_t binWidth[nTrigPlotType];
   TH1F* ratesUnmatched_p[nTrigType];
 
   for(Int_t iter = 0; iter < nTrigPlotType; iter++){
@@ -178,6 +177,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     minXRate[iter] = 10000000;
     maxYRate[iter] = -1;
     minYRate[iter] = 10000000;
+    binWidth[iter] = 10000000;
   }
 
   TLegend* trigLeg_p[nTrigType];
@@ -246,19 +246,22 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
     if(maxYRate[trigPlotPos[iter]] < ratesUnmatched_p[iter]->GetMaximum()) maxYRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetMaximum();
     if(minYRate[trigPlotPos[iter]] > ratesUnmatched_p[iter]->GetMinimum()) minYRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetMinimum();
+
+    if(binWidth[trigPlotPos[iter]] > ratesUnmatched_p[iter]->GetXaxis()->GetBinWidth(1)/2.0) binWidth[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetXaxis()->GetBinWidth(1)/2.0;
   }
 
   for(Int_t iter = 0; iter < nTrigPlotType; iter++){
     trigCanvRate_p[iter]->cd();
 
     maxYRate[iter] += 10*TMath::Sqrt(maxYRate[iter]);
-    if(minYRate[iter] < .00001) minYRate[iter] = 0.5;
+    if(minYRate[iter] < .00001) minYRate[iter] = 0.1;
     else if(minYRate[iter] > 1) minYRate[iter] -= TMath::Sqrt(minYRate[iter]);
     else minYRate[iter] -= minYRate[iter]*minYRate[iter];
 
-    std::cout << iter << ", " << minXRate[iter] << ", " << maxXRate[iter] << ", " << minYRate[iter] << ", " << maxYRate[iter] << std::endl;
+    if(minYRate[iter] > 1) minYRate[iter] = 1;
 
-    hEmptyRate[iter] = new TH1F(Form("hEmptyRate%d", iter), Form(";p_{T,%s}^{reco};Rate (Hz)", trigPlotType2[iter].c_str()), 10, minXRate[iter], maxXRate[iter]);
+
+    hEmptyRate[iter] = new TH1F(Form("hEmptyRate%d", iter), Form(";p_{T,%s}^{trig};Rate (Hz)", trigPlotType2[iter].c_str()), 10, minXRate[iter], maxXRate[iter]);
     hEmptyRate[iter]->GetXaxis()->CenterTitle();
     hEmptyRate[iter]->GetYaxis()->CenterTitle();
     hEmptyRate[iter]->GetYaxis()->SetTitleOffset(1.4);
@@ -274,13 +277,12 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   for(Int_t iter = 0; iter < nTrigType; iter++){
     trigCanvRate_p[trigPlotPos[iter]]->cd();
 
-    std::cout << iter << ", " << trigPlotPos[iter] << ", " << trigPlotCol[iter] << std::endl;
-
     ratesUnmatched_p[iter]->SetMarkerStyle(20);
     ratesUnmatched_p[iter]->SetMarkerSize(1);
     ratesUnmatched_p[iter]->SetLineColor(trigPlotCol[iter]);
     ratesUnmatched_p[iter]->SetMarkerColor(trigPlotCol[iter]);
 
+    gStyle->SetErrorX(.5*binWidth[trigPlotPos[iter]]/(ratesUnmatched_p[iter]->GetXaxis()->GetBinWidth(1)/2.0));
     ratesUnmatched_p[iter]->DrawCopy("E1 SAME");
 
     rateLeg_p[trigPlotPos[iter]]->AddEntry(ratesUnmatched_p[iter], Form("%s", trigType[iter].c_str()), "P L");
