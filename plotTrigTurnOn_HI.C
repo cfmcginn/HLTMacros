@@ -15,8 +15,8 @@
 #include <fstream>
 
 //ONLY EDITING SHOULD OCCUR HERE
-const Int_t maxPlotTrig = 7;
-const Int_t trigColors[7] = {1, kBlue, kRed, kYellow+1, kMagenta, kGreen+3, kCyan+2};
+const Int_t maxPlotTrig = 8;
+const Int_t trigColors[8] = {1, kBlue, kRed, kYellow+1, kMagenta, kGreen+3, kCyan+2, kGray+1};
 
 void claverCanvasSaving(TCanvas* c, TString s,TString format="gif"){
   TDatime* date = new TDatime();
@@ -45,7 +45,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     while(true){
       *inTrigFile >> buffer;
       if(inTrigFile->eof()) break;
-      if(std::string::npos== buffer.find("HLT")) nTrigTypeTemp++;
+      if(std::string::npos== buffer.find("HLT") && std::string::npos== buffer.find("L1")) nTrigTypeTemp++;
       listOfTrig.push_back(buffer);
       nLines++;
     }
@@ -70,7 +70,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   nLines = 0;
 
   for(Int_t iter = 0; iter < (Int_t)listOfTrig.size(); iter++){
-    if(std::string::npos == listOfTrig[iter].find("HLT")){
+    if(std::string::npos == listOfTrig[iter].find("HLT") && std::string::npos == listOfTrig[iter].find("L1")){
 
       std::size_t strIndex = 0;
       while(true){
@@ -111,6 +111,8 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   for(Int_t iter = 0; iter < nTrigType; iter++){
     if(trigTypeCount[iter] > maxNTrig) maxNTrig = trigTypeCount[iter];
   }
+
+  std::cout << "A" << std::endl;
   
   const Int_t maxNTrig2 = maxNTrig;
 
@@ -121,7 +123,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
   Int_t tempPosIter = 0;
 
   for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
-    if(std::string::npos== listOfTrig[iter].find("HLT")){
+    if(std::string::npos== listOfTrig[iter].find("HLT") && std::string::npos== listOfTrig[iter].find("L1")){
       nLines++;
       tempPosIter = 0;
     }
@@ -155,6 +157,8 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     }
   }
 
+  std::cout << "B" << std::endl;
+
   TFile* inFile_p = new TFile(inHistFile.c_str(), "READ");
 
   std::string canvPtName[nTrigType];
@@ -174,7 +178,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   for(Int_t iter = 0; iter < nTrigPlotType; iter++){
     maxXRate[iter] = -1;
-    minXRate[iter] = 10000000;
+    minXRate[iter] = 100000;
     maxYRate[iter] = -1;
     minYRate[iter] = 10000000;
     binWidth[iter] = 10000000;
@@ -197,6 +201,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       if(iter2 == maxPlotTrig) break;
       aPt_p[iter][iter2] = (TGraphAsymmErrors*)inFile_p->Get(Form("%s_%s_pt_asymm", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
+      std::cout << Form("%s_%s_pt_asymm", trigName[iter][iter2].c_str(), trigType[iter].c_str()) << std::endl;
       aPt_p[iter][iter2]->SetLineColor(trigColors[iter2]);
       aPt_p[iter][iter2]->SetMarkerColor(trigColors[iter2]);
 
@@ -232,7 +237,7 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
     trigCanvRate_p[iter]->SetTopMargin(0.01);
     trigCanvRate_p[iter]->SetRightMargin(0.01);
 
-    rateLeg_p[iter] = new TLegend(0.65, 0.70, 0.98, 0.95);
+    rateLeg_p[iter] = new TLegend(0.57, 0.73, 0.98, 0.98);
     rateLeg_p[iter]->SetFillColor(0);
     rateLeg_p[iter]->SetTextFont(43);
     rateLeg_p[iter]->SetTextSize(16);
@@ -240,6 +245,8 @@ int plotTrigTurnOn_HI(const std::string inHistFile, const std::string inTrigFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     ratesUnmatched_p[iter] = (TH1F*)inFile_p->Get(Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]));
+
+    std::cout << Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]) << std::endl;
 
     if(maxXRate[trigPlotPos[iter]] < ratesUnmatched_p[iter]->GetXaxis()->GetXmax()) maxXRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetXaxis()->GetXmax();
     if(minXRate[trigPlotPos[iter]] > ratesUnmatched_p[iter]->GetXaxis()->GetXmin()) minXRate[trigPlotPos[iter]] = ratesUnmatched_p[iter]->GetXaxis()->GetXmin();

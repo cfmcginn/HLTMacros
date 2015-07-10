@@ -16,6 +16,10 @@
 
 const TString AnaPu3CaloTreename = "akPu3CaloJetAnalyzer/t";
 const TString AnaPu4CaloTreename = "akPu4CaloJetAnalyzer/t";
+const TString AnaPu3PFTreename = "akPu3PFJetAnalyzer/t";
+const TString AnaPu4PFTreename = "akPu4PFJetAnalyzer/t";
+const TString AnaVs3CaloTreename = "akVs3CaloJetAnalyzer/t";
+const TString AnaVs4CaloTreename = "akVs4CaloJetAnalyzer/t";
 const TString AnaPhotonTreename = "multiPhotonAnalyzer/photon";
 const TString AnaHITreename = "hiEvtAnalyzer/HiTree";
 const TString AnaSkimTreename = "skimanalysis/HltTree";
@@ -44,7 +48,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     while(true){
       *inTrigFile >> buffer;
       if(inTrigFile->eof()) break;
-      if(std::string::npos== buffer.find("HLT")) nTrigTypeTemp++;
+      if(std::string::npos== buffer.find("HLT") && std::string::npos== buffer.find("L1")) nTrigTypeTemp++;
       listOfTrig.push_back(buffer);
       nLines++;
     }
@@ -59,7 +63,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   nLines = 0;
 
   for(Int_t iter = 0; iter < (Int_t)listOfTrig.size(); iter++){
-    if(std::string::npos == listOfTrig[iter].find("HLT")){
+    if(std::string::npos == listOfTrig[iter].find("HLT") && std::string::npos == listOfTrig[iter].find("L1")){
 
       std::size_t strIndex = 0;
       while(true){
@@ -102,12 +106,16 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   Int_t trigThresh[nTrigType][maxNTrig2];
   Int_t trigVal[nTrigType][maxNTrig2];
   Int_t nTrigFire[nTrigType][maxNTrig2];
+  Float_t highPtMiss[nTrigType][maxNTrig2];
+
+  Float_t nZTrigFireNum[nTrigType][maxNTrig2];
+  Float_t nZTrigFireDenom[nTrigType][maxNTrig2];
 
   nLines = 0;
   Int_t tempPosIter = 0;
 
   for(Int_t iter = 1; iter < (Int_t)(listOfTrig.size()); iter++){
-    if(std::string::npos== listOfTrig[iter].find("HLT")){
+    if(std::string::npos== listOfTrig[iter].find("HLT") && std::string::npos== listOfTrig[iter].find("L1")){
       nLines++;
       tempPosIter = 0;
     }
@@ -116,6 +124,9 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       trigThresh[nLines][tempPosIter] = listOfThresh[iter];
       trigVal[nLines][tempPosIter] = 0;
       nTrigFire[nLines][tempPosIter] = 0;
+      highPtMiss[nLines][tempPosIter] = 0;
+      nZTrigFireNum[nLines][tempPosIter] = 0;
+      nZTrigFireDenom[nLines][tempPosIter] = 0;
       tempPosIter++;
     }
   }
@@ -132,17 +143,22 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   //EDIT HERE FOR TRIGGER ANDING
   //prev -8
-  for(Int_t iter = 0; iter < nTrigType-8; iter++){
-    if(iter == 11 || iter == 12 || iter == 13) continue;
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    //    if(iter == 12 || iter == 13 || iter == 14) continue;
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       HLTTree->SetBranchStatus(trigName[iter][iter2].c_str(), 1);
       HLTTree->SetBranchAddress(trigName[iter][iter2].c_str(), &(trigVal[iter][iter2]));
+      std::cout << trigName[iter][iter2].c_str() << std::endl;
     }
   }
 
   TFile *AnaFile_p = new TFile(inForestFile.c_str(), "READ");
   TTree *AnaPu3CaloTree = (TTree*)AnaFile_p->Get(AnaPu3CaloTreename); 
   TTree *AnaPu4CaloTree = (TTree*)AnaFile_p->Get(AnaPu4CaloTreename); 
+  TTree *AnaPu3PFTree = (TTree*)AnaFile_p->Get(AnaPu3PFTreename); 
+  TTree *AnaPu4PFTree = (TTree*)AnaFile_p->Get(AnaPu4PFTreename); 
+  TTree *AnaVs3CaloTree = (TTree*)AnaFile_p->Get(AnaVs3CaloTreename); 
+  TTree *AnaVs4CaloTree = (TTree*)AnaFile_p->Get(AnaVs4CaloTreename); 
   TTree *AnaPhotonTree = (TTree*)AnaFile_p->Get(AnaPhotonTreename); 
   TTree *AnaHITree = (TTree*)AnaFile_p->Get(AnaHITreename); 
   TTree *AnaSkimTree = (TTree*)AnaFile_p->Get(AnaSkimTreename);
@@ -159,12 +175,12 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   Int_t nTrk;
   Bool_t trkFake[maxTrk];
   Float_t trkPt[maxTrk], trkPhi[maxTrk], trkEta[maxTrk];
-
+  
   const Int_t maxGen = 100000;
   Int_t nGen;
   Float_t genPt[maxGen], genPhi[maxGen], genEta[maxGen];
-  Int_t genPDG[maxGen];
-
+  Int_t genPDG[maxGen], genStatus[maxGen];
+  
   const Int_t maxJt = 500;
   Int_t nPu3Caloref;
   Float_t jtPu3Calopt[maxJt], jtPu3Caloeta[maxJt], jtPu3Calophi[maxJt];
@@ -178,10 +194,35 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   Int_t nPu4Calogen;
   Float_t genPu4Calopt[maxJt], genPu4Caloeta[maxJt], genPu4Calophi[maxJt];
 
+  Int_t nPu3PFref;
+  Float_t jtPu3PFpt[maxJt], jtPu3PFeta[maxJt], jtPu3PFphi[maxJt];
+  Float_t refPu3PFpt[maxJt], refPu3PFeta[maxJt], refPu3PFphi[maxJt];
+  Int_t nPu3PFgen;
+  Float_t genPu3PFpt[maxJt], genPu3PFeta[maxJt], genPu3PFphi[maxJt];
+
+  Int_t nPu4PFref;
+  Float_t jtPu4PFpt[maxJt], jtPu4PFeta[maxJt], jtPu4PFphi[maxJt];
+  Float_t refPu4PFpt[maxJt], refPu4PFeta[maxJt], refPu4PFphi[maxJt];
+  Int_t nPu4PFgen;
+  Float_t genPu4PFpt[maxJt], genPu4PFeta[maxJt], genPu4PFphi[maxJt];
+
+  Int_t nVs3Caloref;
+  Float_t jtVs3Calopt[maxJt], jtVs3Caloeta[maxJt], jtVs3Calophi[maxJt];
+  Float_t refVs3Calopt[maxJt], refVs3Caloeta[maxJt], refVs3Calophi[maxJt];
+  Int_t nVs3Calogen;
+  Float_t genVs3Calopt[maxJt], genVs3Caloeta[maxJt], genVs3Calophi[maxJt];
+
+  Int_t nVs4Caloref;
+  Float_t jtVs4Calopt[maxJt], jtVs4Caloeta[maxJt], jtVs4Calophi[maxJt];
+  Float_t refVs4Calopt[maxJt], refVs4Caloeta[maxJt], refVs4Calophi[maxJt];
+  Int_t nVs4Calogen;
+  Float_t genVs4Calopt[maxJt], genVs4Caloeta[maxJt], genVs4Calophi[maxJt];
+
   const Int_t maxGamma = 50;
   Int_t nPhotons;
   Float_t photonPt[maxGamma], photonEta[maxGamma], photonPhi[maxGamma];   //[nPhotons]
   Float_t seedTime[maxGamma], swissCrx[maxGamma], sigmaIphiIphi[maxGamma], sigmaIetaIeta[maxGamma];
+  Int_t isEle[maxGamma];
 
   AnaHITree->SetBranchStatus("*", 0);
   AnaHITree->SetBranchStatus("evt", 1);
@@ -207,18 +248,23 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   AnaTrkTree->SetBranchAddress("trkPt", trkPt);
   AnaTrkTree->SetBranchAddress("trkPhi", trkPhi);
   AnaTrkTree->SetBranchAddress("trkEta", trkEta);
-
+ 
   AnaGenTree->SetBranchStatus("*", 0);
+  
   AnaGenTree->SetBranchStatus("mult", 1);
   AnaGenTree->SetBranchStatus("pt", 1);
   AnaGenTree->SetBranchStatus("phi", 1);
   AnaGenTree->SetBranchStatus("eta", 1);
   AnaGenTree->SetBranchStatus("pdg", 1);
+  AnaGenTree->SetBranchStatus("sta", 1);
+
   AnaGenTree->SetBranchAddress("mult", &nGen);
   AnaGenTree->SetBranchAddress("pt", genPt);
   AnaGenTree->SetBranchAddress("phi", genPhi);
   AnaGenTree->SetBranchAddress("eta", genEta);
   AnaGenTree->SetBranchAddress("pdg", genPDG);
+  AnaGenTree->SetBranchAddress("sta", genStatus);
+  
 
   AnaPu3CaloTree->SetBranchStatus("*", 0);
   AnaPu3CaloTree->SetBranchStatus("nref", 1);
@@ -268,6 +314,102 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   AnaPu4CaloTree->SetBranchAddress("genphi", genPu4Calophi);
   AnaPu4CaloTree->SetBranchAddress("geneta", genPu4Caloeta);
 
+  AnaPu3PFTree->SetBranchStatus("*", 0);
+  AnaPu3PFTree->SetBranchStatus("nref", 1);
+  AnaPu3PFTree->SetBranchStatus("jtpt", 1);
+  AnaPu3PFTree->SetBranchStatus("jteta", 1);
+  AnaPu3PFTree->SetBranchStatus("jtphi", 1);
+  AnaPu3PFTree->SetBranchStatus("refpt", 1);
+  AnaPu3PFTree->SetBranchStatus("refeta", 1);
+  AnaPu3PFTree->SetBranchStatus("refphi", 1);
+  AnaPu3PFTree->SetBranchStatus("ngen", 1);
+  AnaPu3PFTree->SetBranchStatus("genpt", 1);
+  AnaPu3PFTree->SetBranchStatus("genphi", 1);
+  AnaPu3PFTree->SetBranchStatus("geneta", 1);
+  AnaPu3PFTree->SetBranchAddress("nref", &nPu3PFref);
+  AnaPu3PFTree->SetBranchAddress("jtpt", jtPu3PFpt);
+  AnaPu3PFTree->SetBranchAddress("jteta", jtPu3PFeta);
+  AnaPu3PFTree->SetBranchAddress("jtphi", jtPu3PFphi);
+  AnaPu3PFTree->SetBranchAddress("refpt", refPu3PFpt);
+  AnaPu3PFTree->SetBranchAddress("refeta", refPu3PFeta);
+  AnaPu3PFTree->SetBranchAddress("refphi", refPu3PFphi);
+  AnaPu3PFTree->SetBranchAddress("ngen", &nPu3PFgen);
+  AnaPu3PFTree->SetBranchAddress("genpt", genPu3PFpt);
+  AnaPu3PFTree->SetBranchAddress("genphi", genPu3PFphi);
+  AnaPu3PFTree->SetBranchAddress("geneta", genPu3PFeta);
+
+  AnaPu4PFTree->SetBranchStatus("*", 0);
+  AnaPu4PFTree->SetBranchStatus("nref", 1);
+  AnaPu4PFTree->SetBranchStatus("jtpt", 1);
+  AnaPu4PFTree->SetBranchStatus("jteta", 1);
+  AnaPu4PFTree->SetBranchStatus("jtphi", 1);
+  AnaPu4PFTree->SetBranchStatus("refpt", 1);
+  AnaPu4PFTree->SetBranchStatus("refeta", 1);
+  AnaPu4PFTree->SetBranchStatus("refphi", 1);
+  AnaPu4PFTree->SetBranchStatus("ngen", 1);
+  AnaPu4PFTree->SetBranchStatus("genpt", 1);
+  AnaPu4PFTree->SetBranchStatus("genphi", 1);
+  AnaPu4PFTree->SetBranchStatus("geneta", 1);
+  AnaPu4PFTree->SetBranchAddress("nref", &nPu4PFref);
+  AnaPu4PFTree->SetBranchAddress("jtpt", jtPu4PFpt);
+  AnaPu4PFTree->SetBranchAddress("jteta", jtPu4PFeta);
+  AnaPu4PFTree->SetBranchAddress("jtphi", jtPu4PFphi);
+  AnaPu4PFTree->SetBranchAddress("refpt", refPu4PFpt);
+  AnaPu4PFTree->SetBranchAddress("refeta", refPu4PFeta);
+  AnaPu4PFTree->SetBranchAddress("refphi", refPu4PFphi);
+  AnaPu4PFTree->SetBranchAddress("ngen", &nPu4PFgen);
+  AnaPu4PFTree->SetBranchAddress("genpt", genPu4PFpt);
+  AnaPu4PFTree->SetBranchAddress("genphi", genPu4PFphi);
+  AnaPu4PFTree->SetBranchAddress("geneta", genPu4PFeta);
+
+  AnaVs3CaloTree->SetBranchStatus("*", 0);
+  AnaVs3CaloTree->SetBranchStatus("nref", 1);
+  AnaVs3CaloTree->SetBranchStatus("jtpt", 1);
+  AnaVs3CaloTree->SetBranchStatus("jteta", 1);
+  AnaVs3CaloTree->SetBranchStatus("jtphi", 1);
+  AnaVs3CaloTree->SetBranchStatus("refpt", 1);
+  AnaVs3CaloTree->SetBranchStatus("refeta", 1);
+  AnaVs3CaloTree->SetBranchStatus("refphi", 1);
+  AnaVs3CaloTree->SetBranchStatus("ngen", 1);
+  AnaVs3CaloTree->SetBranchStatus("genpt", 1);
+  AnaVs3CaloTree->SetBranchStatus("genphi", 1);
+  AnaVs3CaloTree->SetBranchStatus("geneta", 1);
+  AnaVs3CaloTree->SetBranchAddress("nref", &nVs3Caloref);
+  AnaVs3CaloTree->SetBranchAddress("jtpt", jtVs3Calopt);
+  AnaVs3CaloTree->SetBranchAddress("jteta", jtVs3Caloeta);
+  AnaVs3CaloTree->SetBranchAddress("jtphi", jtVs3Calophi);
+  AnaVs3CaloTree->SetBranchAddress("refpt", refVs3Calopt);
+  AnaVs3CaloTree->SetBranchAddress("refeta", refVs3Caloeta);
+  AnaVs3CaloTree->SetBranchAddress("refphi", refVs3Calophi);
+  AnaVs3CaloTree->SetBranchAddress("ngen", &nVs3Calogen);
+  AnaVs3CaloTree->SetBranchAddress("genpt", genVs3Calopt);
+  AnaVs3CaloTree->SetBranchAddress("genphi", genVs3Calophi);
+  AnaVs3CaloTree->SetBranchAddress("geneta", genVs3Caloeta);
+
+  AnaVs4CaloTree->SetBranchStatus("*", 0);
+  AnaVs4CaloTree->SetBranchStatus("nref", 1);
+  AnaVs4CaloTree->SetBranchStatus("jtpt", 1);
+  AnaVs4CaloTree->SetBranchStatus("jteta", 1);
+  AnaVs4CaloTree->SetBranchStatus("jtphi", 1);
+  AnaVs4CaloTree->SetBranchStatus("refpt", 1);
+  AnaVs4CaloTree->SetBranchStatus("refeta", 1);
+  AnaVs4CaloTree->SetBranchStatus("refphi", 1);
+  AnaVs4CaloTree->SetBranchStatus("ngen", 1);
+  AnaVs4CaloTree->SetBranchStatus("genpt", 1);
+  AnaVs4CaloTree->SetBranchStatus("genphi", 1);
+  AnaVs4CaloTree->SetBranchStatus("geneta", 1);
+  AnaVs4CaloTree->SetBranchAddress("nref", &nVs4Caloref);
+  AnaVs4CaloTree->SetBranchAddress("jtpt", jtVs4Calopt);
+  AnaVs4CaloTree->SetBranchAddress("jteta", jtVs4Caloeta);
+  AnaVs4CaloTree->SetBranchAddress("jtphi", jtVs4Calophi);
+  AnaVs4CaloTree->SetBranchAddress("refpt", refVs4Calopt);
+  AnaVs4CaloTree->SetBranchAddress("refeta", refVs4Caloeta);
+  AnaVs4CaloTree->SetBranchAddress("refphi", refVs4Calophi);
+  AnaVs4CaloTree->SetBranchAddress("ngen", &nVs4Calogen);
+  AnaVs4CaloTree->SetBranchAddress("genpt", genVs4Calopt);
+  AnaVs4CaloTree->SetBranchAddress("genphi", genVs4Calophi);
+  AnaVs4CaloTree->SetBranchAddress("geneta", genVs4Caloeta);
+
   AnaPhotonTree->SetBranchStatus("*", 0);
   AnaPhotonTree->SetBranchStatus("nPhotons", 1);
   AnaPhotonTree->SetBranchStatus("pt", 1);
@@ -277,6 +419,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   AnaPhotonTree->SetBranchStatus("swissCrx", 1);
   AnaPhotonTree->SetBranchStatus("sigmaIphiIphi", 1);
   AnaPhotonTree->SetBranchStatus("sigmaIetaIeta", 1);
+  AnaPhotonTree->SetBranchStatus("isEle", 1);
   
   AnaPhotonTree->SetBranchAddress("nPhotons", &nPhotons);
   AnaPhotonTree->SetBranchAddress("pt", photonPt);
@@ -286,22 +429,33 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   AnaPhotonTree->SetBranchAddress("swissCrx", swissCrx);
   AnaPhotonTree->SetBranchAddress("sigmaIphiIphi", sigmaIphiIphi);
   AnaPhotonTree->SetBranchAddress("sigmaIetaIeta", sigmaIetaIeta);
+  AnaPhotonTree->SetBranchAddress("isEle", isEle);
 
   //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (1 of 2)
 
-  const Int_t nPtBins[nTrigType] = {100, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
-  const Int_t maxPt[nTrigType] = {100, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
+
+  //  const Int_t nPtBins[nTrigType] = {200, 200, 200, 200};
+  //  const Int_t maxPt[nTrigType] = {200, 200, 200, 200};
+
+  const Int_t nPtBins[nTrigType] = {120, 60, 100, 200, 100, 200, 200, 200, 100, 200, 200, 200, 100, 100, 100, 100, 100, 100, 100, 100, 200, 20, 200, 200, 100};
+  const Int_t maxPt[nTrigType] = {120, 60, 100, 200, 100, 200, 200, 200, 100, 200, 200, 200, 100, 100, 100, 100, 100, 100, 100, 100, 200, 20, 200, 200, 100};
+
+  //  const Int_t nPtBins[nTrigType] = {100, 200, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
+  //  const Int_t maxPt[nTrigType] = {100, 200, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
   //const Int_t nPtBins[nTrigType] = {120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120};
   //const Int_t maxPt[nTrigType] = {130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130};
 
   const Int_t nEtaBins = 50;
   TH1F *histsPt_p[nTrigType][maxNTrig2+1], *histsEta_p[nTrigType][maxNTrig2], *histsEtaTrig_p[nTrigType][maxNTrig2];
+  TH1F* histsSpectPt_p[nTrigType];
 
   TH1F* ratesMatched_p[nTrigType];
   TH1F* ratesUnmatched_p[nTrigType];
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     histsPt_p[iter][0] = new TH1F(Form("leading%s_pt", trigType[iter].c_str()), Form("leading%s_pt", trigType[iter].c_str()), nPtBins[iter], 0.0, maxPt[iter]);
+
+    histsSpectPt_p[iter] = new TH1F(Form("spect%s_pt", trigType[iter].c_str()), Form("spect%s_pt", trigType[iter].c_str()), nPtBins[iter], 0.0, maxPt[iter]);
 
     Int_t max = trigThresh[iter][trigTypeCount[iter]-1];
     Int_t min = trigThresh[iter][0];
@@ -330,6 +484,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     ratesMatched_p[iter] = new TH1F(Form("ratesMatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), Form("ratesMatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), nBins, min, max);
     ratesUnmatched_p[iter] = new TH1F(Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), Form("ratesUnmatched_%s_%d_%d", trigType[iter].c_str(), trigThresh[iter][0], trigThresh[iter][trigTypeCount[iter]-1]), nBins, min, max);
 
+    std::cout << "Min, max: " << min << ", " << max << std::endl;
+
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       histsPt_p[iter][iter2+1] = (TH1F*)histsPt_p[iter][0]->Clone(Form("%s_%s_%d_pt", trigName[iter][iter2].c_str(), trigType[iter].c_str(), trigThresh[iter][iter2]));
 
@@ -353,7 +509,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     for(Int_t iter = 0; iter < nTrigType; iter++){
       for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
 	//EDIT HERE FOR ANDING
-	
+	/*	
 	if(iter >= nTrigType-8 && iter < nTrigType-6) trigVal[iter][iter2] = (trigVal[iter-4][0] && trigVal[3][iter2]);
 	else if(iter >= nTrigType-6 && iter < nTrigType-4) trigVal[iter][iter2] = (trigVal[iter-2][0] && trigVal[3][iter2]);
 	else if(iter >= nTrigType-4 && iter < nTrigType-2) trigVal[iter][iter2] = (trigVal[iter-6][0] && trigVal[3][iter2]);
@@ -362,9 +518,9 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 	if(iter >= nTrigType-6 && iter < nTrigType-4 && trigVal[3][trigTypeCount[3] - 1]) trigVal[iter][iter2] = 0;
 	else if(iter >= nTrigType-2 && trigVal[3][trigTypeCount[3] - 1]) trigVal[iter][iter2] = 0;
 
-	if(iter == 11 || iter == 12 || iter == 13) trigVal[iter][iter2] =  trigVal[iter-3][iter2];
-	if((iter == 11 || iter == 12 || iter == 13) && trigVal[3][trigTypeCount[3] - 1])  trigVal[iter][iter2] = 0;
-	
+	if(iter == 12 || iter == 13 || iter == 14) trigVal[iter][iter2] =  trigVal[iter-3][iter2];
+	if((iter == 12 || iter == 13 || iter == 14) && trigVal[3][trigTypeCount[3] - 1])  trigVal[iter][iter2] = 0;
+	*/
 
 	if(trigVal[iter][iter2]) nTrigFire[iter][iter2]++;
       }
@@ -381,6 +537,10 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
     AnaPu3CaloTree->GetEntry(entry);
     AnaPu4CaloTree->GetEntry(entry);
+    AnaPu3PFTree->GetEntry(entry);
+    AnaPu4PFTree->GetEntry(entry);
+    AnaVs3CaloTree->GetEntry(entry);
+    AnaVs4CaloTree->GetEntry(entry);
     AnaPhotonTree->GetEntry(entry);
     AnaHITree->GetEntry(entry);
     AnaSkimTree->GetEntry(entry);
@@ -393,8 +553,10 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     HLTTree->GetEntry(hlt_entry);
     matched++;
     
+    /*
     for(Int_t iter = 0; iter < nTrigType; iter++){
       for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
+	
         //EDIT HERE FOR ANDING                                                                       
         if(iter >= nTrigType-8 && iter < nTrigType-6) trigVal[iter][iter2] = (trigVal[iter-4][0] && trigVal[3][iter2]);
         else if(iter >= nTrigType-6 && iter < nTrigType-4) trigVal[iter][iter2] = (trigVal[iter-2][0] && trigVal[3][iter2]);
@@ -404,45 +566,47 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
         if(iter >= nTrigType-6 && iter < nTrigType-4 && trigVal[3][trigTypeCount[3] - 1]) trigVal[iter][iter2] = 0;
         else if(iter >= nTrigType-2 && trigVal[3][trigTypeCount[3] - 1]) trigVal[iter][iter2] = 0;
 
-        if(iter == 11 || iter == 12 || iter == 13) trigVal[iter][iter2] =  trigVal[iter-3][iter2];
-        if((iter == 11 || iter == 12 || iter == 13) && trigVal[3][trigTypeCount[3] - 1])  trigVal[iter][iter2] = 0;
+        if(iter == 12 || iter == 13 || iter == 14) trigVal[iter][iter2] =  trigVal[iter-3][iter2];
+        if((iter == 12 || iter == 13 || iter == 14) && trigVal[3][trigTypeCount[3] - 1])  trigVal[iter][iter2] = 0;
+	
       }
     }
-    
+	*/
 
     Double_t maxTrkPt = -1;
-    Double_t maxTrkEta = -100;
+    //    Double_t maxTrkEta = -100;
   
     for(int i = 0; i < nTrk; i++){
       if(fabs(trkEta[i]) > 2.4) continue;
       if(trkFake[i]) continue;
       if(trkPt[i] > maxTrkPt){
 	maxTrkPt = trkPt[i];
-	maxTrkEta = trkEta[i];
+	//	maxTrkEta = trkEta[i];
       }
     }
 
+    /*
     Double_t maxMuPt = -1;
-    Double_t maxMuEta = -100;
+    //    Double_t maxMuEta = -100;
 
     for(int i = 0; i < nGen; i++){
       if(TMath::Abs(genPDG[i]) != 13) continue;
       if(fabs(genEta[i]) > 2.4) continue;
       if(genPt[i] > maxMuPt){
 	maxMuPt = genPt[i];
-       	maxMuEta = genEta[i];
+	//       	maxMuEta = genEta[i];
       }
     }
-
+    */
   
     Double_t maxPu3CaloAnaPt = -1;
-    Double_t maxPu3CaloAnaEta = -100;
+    //Double_t maxPu3CaloAnaEta = -100;
     
     for(int i = 0; i < nPu3Caloref; ++i){
       if(fabs(jtPu3Caloeta[i]) > 2.0) continue;
       if(jtPu3Calopt[i] > maxPu3CaloAnaPt){
 	maxPu3CaloAnaPt = jtPu3Calopt[i];
-	maxPu3CaloAnaEta = jtPu3Caloeta[i];
+	//	maxPu3CaloAnaEta = jtPu3Caloeta[i];
       }
     }
 
@@ -450,7 +614,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     Double_t maxPu4CaloAnaEta = -100;
 
     Double_t maxMidPu4CaloAnaPt = -1;
-    Double_t maxMidPu4CaloAnaEta = -100;
+    //    Double_t maxMidPu4CaloAnaEta = -100;
 
     Double_t maxDiPu4CaloAnaPt = -1;
     Double_t maxDiPu4CaloAnaEta = -100;
@@ -468,7 +632,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     //    Double_t threeTriPu4CaloAnaEta = -100;
 
     for(int i = 0; i < nPu4Caloref; ++i){
-      if(fabs(jtPu4Caloeta[i]) > 5.0) continue;
+      if(fabs(jtPu4Caloeta[i]) > 2.0) continue;
       if(jtPu4Calopt[i] > maxPu4CaloAnaPt){
 	maxPu4CaloAnaPt = jtPu4Calopt[i];
 	maxPu4CaloAnaEta = jtPu4Caloeta[i];
@@ -477,7 +641,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       if(fabs(jtPu4Caloeta[i]) < 2.0){
 	if(jtPu4Calopt[i] > maxMidPu4CaloAnaPt){
 	  maxMidPu4CaloAnaPt = jtPu4Calopt[i];
-	  maxMidPu4CaloAnaEta = jtPu4Caloeta[i];
+	  //	  maxMidPu4CaloAnaEta = jtPu4Caloeta[i];
 	}
       }
 
@@ -503,7 +667,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 	//	twoTriPu4CaloAnaEta = maxTriPu4CaloAnaEta;
 	
 	maxTriPu4CaloAnaPt = jtPu4Calopt[i];
-	maxTriPu4CaloAnaEta = jtPu4Caloeta[i];
+       	maxTriPu4CaloAnaEta = jtPu4Caloeta[i];
       }
       else if(jtPu4Calopt[i] > twoTriPu4CaloAnaPt){
         threeTriPu4CaloAnaPt = twoTriPu4CaloAnaPt;
@@ -518,24 +682,116 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       }
     }
 
+    Double_t maxPu3PFAnaPt = -1;
+    //    Double_t maxPu3PFAnaEta = -100;
+    
+    for(int i = 0; i < nPu3PFref; ++i){
+      if(fabs(jtPu3PFeta[i]) > 2.0) continue;
+      if(jtPu3PFpt[i] > maxPu3PFAnaPt){
+	maxPu3PFAnaPt = jtPu3PFpt[i];
+	//	maxPu3PFAnaEta = jtPu3PFeta[i];
+      }
+    }
+
+    Double_t maxPu4PFAnaPt = -1;
+    Double_t maxPu4PFAnaEta = -100;
+
+    for(int i = 0; i < nPu4PFref; ++i){
+      if(fabs(jtPu4PFeta[i]) > 2.0) continue;
+      if(jtPu4PFpt[i] > maxPu4PFAnaPt){
+	maxPu4PFAnaPt = jtPu4PFpt[i];
+	maxPu4PFAnaEta = jtPu4PFeta[i];
+      }
+    }
+
+    /*
+    Double_t maxVs3CaloAnaPt = -1;
+    Double_t maxVs3CaloAnaEta = -100;
+    
+    for(int i = 0; i < nVs3Caloref; ++i){
+      if(fabs(jtVs3Caloeta[i]) > 2.0) continue;
+      if(jtVs3Calopt[i] > maxVs3CaloAnaPt){
+	maxVs3CaloAnaPt = jtVs3Calopt[i];
+	maxVs3CaloAnaEta = jtVs3Caloeta[i];
+      }
+    }
+
+    Double_t maxVs4CaloAnaPt = -1;
+    Double_t maxVs4CaloAnaEta = -100;
+
+    for(int i = 0; i < nVs4Caloref; ++i){
+      if(fabs(jtVs4Caloeta[i]) > 2.0) continue;
+      if(jtVs4Calopt[i] > maxVs4CaloAnaPt){
+	maxVs4CaloAnaPt = jtVs4Calopt[i];
+	maxVs4CaloAnaEta = jtVs4Caloeta[i];
+      }
+    }
+    */
+
     Double_t maxPhotonAnaPt = -1;
     Double_t maxPhotonAnaEta = -100;
 
+    Double_t maxElectronAnaPt = -1;
+    Double_t maxElectronAnaEta = -100;
+
+    Double_t twoElectronAnaPt = -1;
+    Double_t twoElectronAnaEta = -100;
+
     for(int i = 0; i < nPhotons; ++i){
-      if(fabs(photonEta[i]) > 1.8) continue;
+      if(fabs(photonEta[i]) > 1.44) continue;
       if(TMath::Abs(seedTime[i]) > 3) continue;
       if(swissCrx[i] > 0.9) continue;
       if(sigmaIetaIeta[i] < 0.002) continue;
       if(sigmaIphiIphi[i] < 0.002) continue;
+      //      if(isEle[i]) continue;
       if(photonPt[i] > maxPhotonAnaPt){	
 
 	maxPhotonAnaPt = photonPt[i];
-	maxPhotonAnaEta = photonEta[i];
+	//	maxPhotonAnaEta = photonEta[i];
       }
     }
 
+    for(int i = 0; i < nPhotons; ++i){
+      if(fabs(photonEta[i]) > 1.44) continue;
+      if(!isEle[i]) continue;
+      if(photonPt[i] > maxElectronAnaPt){	
+	twoElectronAnaPt = maxElectronAnaPt;
+	twoElectronAnaEta = maxElectronAnaEta;
+
+	maxElectronAnaPt = photonPt[i];
+	maxElectronAnaEta = photonEta[i];
+      }
+      else if(photonPt[i] > twoElectronAnaPt){
+        twoElectronAnaPt = photonPt[i];
+	twoElectronAnaEta = photonEta[i];
+      }
+    }
+    
+    maxElectronAnaPt = -1;
+    twoElectronAnaPt = -1;
+
+    maxElectronAnaEta = -100;
+    twoElectronAnaEta = -100;
+
+    for(int i = 0; i < nGen; i++){
+      if(genStatus[i] != 1) continue;
+      if(TMath::Abs(genPDG[i]) != 11) continue;
+      //      if(fabs(genEta[i]) > 3.0) continue;
+      if(genPt[i] > maxElectronAnaPt){
+	twoElectronAnaPt = maxElectronAnaPt;
+     	twoElectronAnaEta = maxElectronAnaEta;
+
+	maxElectronAnaPt = genPt[i];
+     	maxElectronAnaEta = genEta[i];
+      }
+      else if(genPt[i] > twoElectronAnaPt){
+        twoElectronAnaPt = genPt[i];
+	twoElectronAnaEta = genEta[i];
+      }
+    }
+    
     Double_t maxMidPhotonAnaPt = -1;
-    Double_t maxMidPhotonAnaEta = -100;
+    //    Double_t maxMidPhotonAnaEta = -100;
 
     for(int i = 0; i < nPhotons; ++i){
       if(fabs(photonEta[i]) > 1.24) continue;
@@ -545,22 +801,33 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       if(sigmaIphiIphi[i] < 0.002) continue;
       if(photonPt[i] > maxMidPhotonAnaPt){
 	maxMidPhotonAnaPt = photonPt[i];
-	maxMidPhotonAnaEta = photonEta[i];
+	//	maxMidPhotonAnaEta = photonEta[i];
       }
     }
 
     //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (2 of 2)
-    const Int_t nOfflineObj = 26;
+    //    const Int_t nOfflineObj = 4;
+    const Int_t nOfflineObj = 25;
+    //    const Int_t nOfflineObj = 27;
     //    const Int_t nOfflineObj = 23;
     if(nOfflineObj != nTrigType){
       std::cout << "ERROR: OFFLINE OBJECT NUMBER MUST MATCH NUMBER OF TRIGGER 'TYPES' IN INPUT TEXT FILE; RETURN 1" << std::endl;
+      std::cout << nTrigType << std::endl;
       return 1;
     }
-
-    Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, maxPu3CaloAnaPt, maxPu3CaloAnaPt, maxPu4CaloAnaPt, maxMidPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt, maxMidPhotonAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxMuPt, maxMuPt, maxMuPt, maxMuPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt};
-    Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, maxPu3CaloAnaEta, maxPu3CaloAnaEta, maxPu4CaloAnaEta, maxMidPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta, maxMidPhotonAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxMuEta, maxMuEta, maxMuEta, maxMuEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta};
-    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, true, true, twoDiPu4CaloAnaPt > 50.0, twoDiPu4CaloAnaPt > 50.0, twoTriPu4CaloAnaPt > 65.0 && threeTriPu4CaloAnaPt > 65.0, twoDiPu4CaloAnaPt > 50.0, twoDiPu4CaloAnaPt > 50.0, twoTriPu4CaloAnaPt > 65.0 && threeTriPu4CaloAnaPt > 65.0, true, true, true, true, maxMuPt > 3, maxMuPt > 3, maxMuPt > 3, maxMuPt > 3, maxMuPt > 10, maxMuPt > 10, maxMuPt > 10, maxMuPt > 10};
-
+    /*
+    Double_t trigOfflinePt[nOfflineObj] = {maxPu4PFAnaPt, maxPu4PFAnaPt, maxPu4PFAnaPt, maxPu4PFAnaPt};
+    Double_t trigOfflineEta[nOfflineObj] = {maxPu4PFAnaEta, maxPu4PFAnaEta, maxPu4PFAnaEta, maxPu4PFAnaEta};
+    Bool_t trigCond[nOfflineObj] = {true, true, true, true};
+    */
+    Double_t trigOfflinePt[nOfflineObj] = {maxPu4CaloAnaPt, maxPhotonAnaPt, maxPhotonAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxPu4PFAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt};
+    Double_t trigOfflineEta[nOfflineObj] = {maxPu4CaloAnaEta, maxPhotonAnaEta, maxPhotonAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxPu4PFAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta};
+    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, hiBin > 100, hiBin < 100 && hiBin > 60, true, twoDiPu4CaloAnaPt > 50.0, twoDiPu4CaloAnaPt > 50.0, twoTriPu4CaloAnaPt > 65.0 && threeTriPu4CaloAnaPt > 65.0, true, true, true, true, true, true, true, true, true, true, true, true, true};
+    /*
+    Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, maxPu3CaloAnaPt, maxPu3CaloAnaPt,  maxPu4CaloAnaPt, maxMidPu4CaloAnaPt, maxPu4PFAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt, maxMidPhotonAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxMuPt, maxMuPt, maxMuPt, maxMuPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt};
+    Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, maxPu3CaloAnaEta, maxPu3CaloAnaEta, maxPu4CaloAnaEta, maxMidPu4CaloAnaEta, maxPu4PFAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta, maxMidPhotonAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxMuEta, maxMuEta, maxMuEta, maxMuEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta};
+    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, true, true, true, twoDiPu4CaloAnaPt > 50.0, twoDiPu4CaloAnaPt > 50.0, twoTriPu4CaloAnaPt > 65.0 && threeTriPu4CaloAnaPt > 65.0, twoDiPu4CaloAnaPt > 50.0, twoDiPu4CaloAnaPt > 50.0, twoTriPu4CaloAnaPt > 65.0 && threeTriPu4CaloAnaPt > 65.0, true, true, true, true, maxMuPt > 3, maxMuPt > 3, maxMuPt > 3, maxMuPt > 3, maxMuPt > 10, maxMuPt > 10, maxMuPt > 10, maxMuPt > 10};
+    */
     //    Double_t trigOfflinePt[nOfflineObj] = {maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt};
     //    Double_t trigOfflineEta[nOfflineObj] = {maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta};
     //    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
@@ -576,8 +843,20 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 	    histsPt_p[iter][iter2+1]->Fill(trigOfflinePt[iter]);
 	    if(trigOfflinePt[iter] > trigThresh[iter][iter2]) histsEtaTrig_p[iter][iter2]->Fill(trigOfflineEta[iter]);
 	  }
+	  else{
+	    if(highPtMiss[iter][iter2] < trigOfflinePt[iter]) highPtMiss[iter][iter2] = trigOfflinePt[iter];
+	  }
 	}
       }
+      
+      if(TMath::Abs(maxElectronAnaEta) < 1.44 && TMath::Abs(twoElectronAnaEta) < 1.44){
+	for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
+	  nZTrigFireDenom[iter][iter2]++;	  
+
+	  if(trigVal[iter][iter2]) nZTrigFireNum[iter][iter2]++;
+	}
+      }
+      
     }
   }
 
@@ -586,10 +865,10 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   std::cout << "Trigger fires: " << std::endl;
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
-    std::cout << "  Trigger Type, raw #, rate matched (Hz), rate unmatched (Hz): " << trigType[iter] << std::endl;
+    std::cout << "  Trigger Type, raw #, rate matched (Hz), rate unmatched (Hz), highestMiss: " << trigType[iter] << std::endl;
     
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
-      std::cout << "    " << trigName[iter][iter2] << ": " << nTrigFire[iter][iter2] << ", " << std::setprecision(5) << nTrigFire[iter][iter2]*30000./matched << ", " << std::setprecision(5) << nTrigFire[iter][iter2]*30000./HLTTree->GetEntries() << std::endl;
+      std::cout << "    " << trigName[iter][iter2] << ": " << nTrigFire[iter][iter2] << ", " << std::setprecision(5) << nTrigFire[iter][iter2]*30000./matched << ", " << std::setprecision(5) << nTrigFire[iter][iter2]*30000./HLTTree->GetEntries() << ", " << std::setprecision(5) << highPtMiss[iter][iter2] << std::endl;
 
       Int_t bin = ratesMatched_p[iter]->FindBin(trigThresh[iter][iter2]);
       Float_t num = nTrigFire[iter][iter2]*30000.;
@@ -602,10 +881,23 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
   }
 
+  std::cout << std::endl;
+  std::cout << "Z eff: " << std::endl;
+  for(Int_t iter = 0; iter < nTrigType; iter++){
+    std::cout << "  Trigger Type, raw #, denom #, eff" << trigType[iter] << std::endl;
+
+    for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
+      std::cout << "    " << trigName[iter][iter2] << ": " << nZTrigFireNum[iter][iter2] << ", " << nZTrigFireDenom[iter][iter2] << ", " << std::setprecision(5) << nZTrigFireNum[iter][iter2]/nZTrigFireDenom[iter][iter2] << std::endl;
+    }
+  }
+
   TGraphAsymmErrors *aPt_p[nTrigType][maxNTrig2], *aEta_p[nTrigType][maxNTrig2];
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
+      //      if(iter2 == 0) histsSpectPt_p[iter] = (TH1F*)(histsPt_p[iter][iter2+1]->Clone());
+      histsSpectPt_p[iter]->Add(histsPt_p[iter][iter2+1]);
+
       aPt_p[iter][iter2] = new TGraphAsymmErrors();
       aPt_p[iter][iter2]->BayesDivide(histsPt_p[iter][iter2+1],histsPt_p[iter][0]);
       aPt_p[iter][iter2]->SetName(Form("%s_%s_pt_asymm", trigName[iter][iter2].c_str(), trigType[iter].c_str()));
@@ -630,6 +922,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     histsPt_p[iter][0]->Write("", TObject::kOverwrite);
+    histsSpectPt_p[iter]->Write("", TObject::kOverwrite);
 
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       histsPt_p[iter][iter2+1]->Write("", TObject::kOverwrite);
@@ -648,6 +941,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
   for(Int_t iter = 0; iter < nTrigType; iter++){
     delete histsPt_p[iter][0];
+    delete histsSpectPt_p[iter];
 
     for(Int_t iter2 = 0; iter2 < trigTypeCount[iter]; iter2++){
       delete histsEta_p[iter][iter2];
