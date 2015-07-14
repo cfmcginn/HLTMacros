@@ -437,8 +437,11 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
   //  const Int_t nPtBins[nTrigType] = {200, 200, 200, 200};
   //  const Int_t maxPt[nTrigType] = {200, 200, 200, 200};
 
-  const Int_t nPtBins[nTrigType] = {120, 60, 100, 200, 100, 200, 200, 200, 100, 200, 200, 200, 100, 100, 100, 100, 100, 100, 100, 100, 200, 20, 200, 200, 100};
-  const Int_t maxPt[nTrigType] = {120, 60, 100, 200, 100, 200, 200, 200, 100, 200, 200, 200, 100, 100, 100, 100, 100, 100, 100, 100, 200, 20, 200, 200, 100};
+  const Int_t nPtBins[nTrigType] = {20};
+  const Int_t maxPt[nTrigType] = {20};
+
+  //  const Int_t nPtBins[nTrigType] = {120, 60, 60, 60, 60, 30, 100, 60, 160, 160, 160, 100, 100, 100, 100, 160, 160, 160, 100, 100, 100, 100, 100, 100, 160, 30, 160, 160, 100};
+  //  const Int_t maxPt[nTrigType] = {120, 60, 60, 60, 60, 30, 100, 60, 160, 160, 160, 100, 100, 100, 100, 160, 160, 160, 100, 100, 100, 100, 100, 100, 160, 30, 160, 160, 100};
 
   //  const Int_t nPtBins[nTrigType] = {100, 200, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
   //  const Int_t maxPt[nTrigType] = {100, 200, 200, 200, 200, 200, 200, 100, 100, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
@@ -585,7 +588,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       }
     }
 
-    /*
+    
     Double_t maxMuPt = -1;
     //    Double_t maxMuEta = -100;
 
@@ -594,11 +597,24 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       if(fabs(genEta[i]) > 2.4) continue;
       if(genPt[i] > maxMuPt){
 	maxMuPt = genPt[i];
-	//       	maxMuEta = genEta[i];
+	//	maxMuEta = genEta[i];
       }
     }
-    */
-  
+    
+
+    Double_t maxDPt = -1;
+    Double_t maxDEta = -100;
+
+    for(int i = 0; i < nGen; i++){
+      if(TMath::Abs(genPDG[i]) != 421) continue;
+      if(fabs(genEta[i]) > 2.0) continue;
+      if(genPt[i] > maxDPt){
+	maxDPt = genPt[i];
+	maxDEta = genEta[i];
+      }
+    }  
+
+
     Double_t maxPu3CaloAnaPt = -1;
     //Double_t maxPu3CaloAnaEta = -100;
     
@@ -611,19 +627,25 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
 
     Double_t maxPu4CaloAnaPt = -1;
-    Double_t maxPu4CaloAnaEta = -100;
+    //    Double_t maxPu4CaloAnaEta = -100;
 
     Double_t maxMidPu4CaloAnaPt = -1;
     //    Double_t maxMidPu4CaloAnaEta = -100;
 
-    Double_t maxDiPu4CaloAnaPt = -1;
-    Double_t maxDiPu4CaloAnaEta = -100;
+    Double_t maxDiPu4CaloEta1p1AnaPt = -1;
+    //    Double_t maxDiPu4CaloEta1p1AnaEta = -100;
 
-    Double_t twoDiPu4CaloAnaPt = -1;
+    Double_t twoDiPu4CaloEta1p1AnaPt = -1;
+    //    Double_t twoDiPu4CaloAnaEta = -100;
+
+    Double_t maxDiPu4CaloEta0p7AnaPt = -1;
+    //    Double_t maxDiPu4CaloEta0p7AnaEta = -100;
+
+    Double_t twoDiPu4CaloEta0p7AnaPt = -1;
     //    Double_t twoDiPu4CaloAnaEta = -100;
 
     Double_t maxTriPu4CaloAnaPt = -1;
-    Double_t maxTriPu4CaloAnaEta = -100;
+    //    Double_t maxTriPu4CaloAnaEta = -100;
 
     Double_t twoTriPu4CaloAnaPt = -1;
     //    Double_t twoTriPu4CaloAnaEta = -100;
@@ -635,7 +657,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       if(fabs(jtPu4Caloeta[i]) > 2.0) continue;
       if(jtPu4Calopt[i] > maxPu4CaloAnaPt){
 	maxPu4CaloAnaPt = jtPu4Calopt[i];
-	maxPu4CaloAnaEta = jtPu4Caloeta[i];
+	//	maxPu4CaloAnaEta = jtPu4Caloeta[i];
       }
 
       if(fabs(jtPu4Caloeta[i]) < 2.0){
@@ -646,15 +668,29 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       }
 
       if(fabs(jtPu4Caloeta[i]) < 0.6){
-	if(jtPu4Calopt[i] > maxDiPu4CaloAnaPt){
-	  twoDiPu4CaloAnaPt = maxDiPu4CaloAnaPt;
+	if(jtPu4Calopt[i] > maxDiPu4CaloEta0p7AnaPt){
+	  twoDiPu4CaloEta0p7AnaPt = maxDiPu4CaloEta0p7AnaPt;
 	  //	  twoDiPu4CaloAnaEta = maxDiPu4CaloAnaEta;
 
-	  maxDiPu4CaloAnaPt = jtPu4Calopt[i];
-	  maxDiPu4CaloAnaEta = jtPu4Caloeta[i];
+	  maxDiPu4CaloEta0p7AnaPt = jtPu4Calopt[i];
+	  //	  maxDiPu4CaloEta0p7AnaEta = jtPu4Caloeta[i];
 	}
-	else if(jtPu4Calopt[i] > twoDiPu4CaloAnaPt){
-          twoDiPu4CaloAnaPt = jtPu4Calopt[i];
+	else if(jtPu4Calopt[i] > twoDiPu4CaloEta0p7AnaPt){
+          twoDiPu4CaloEta0p7AnaPt = jtPu4Calopt[i];
+	  //	  twoDiPu4CaloAnaEta = jtPu4Caloeta[i];
+	}
+      }
+
+      if(fabs(jtPu4Caloeta[i]) < 1.0){
+	if(jtPu4Calopt[i] > maxDiPu4CaloEta1p1AnaPt){
+	  twoDiPu4CaloEta1p1AnaPt = maxDiPu4CaloEta1p1AnaPt;
+	  //	  twoDiPu4CaloAnaEta = maxDiPu4CaloAnaEta;
+
+	  maxDiPu4CaloEta1p1AnaPt = jtPu4Calopt[i];
+	  //	  maxDiPu4CaloEta1p1AnaEta = jtPu4Caloeta[i];
+	}
+	else if(jtPu4Calopt[i] > twoDiPu4CaloEta1p1AnaPt){
+          twoDiPu4CaloEta1p1AnaPt = jtPu4Calopt[i];
 	  //	  twoDiPu4CaloAnaEta = jtPu4Caloeta[i];
 	}
       }
@@ -667,7 +703,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 	//	twoTriPu4CaloAnaEta = maxTriPu4CaloAnaEta;
 	
 	maxTriPu4CaloAnaPt = jtPu4Calopt[i];
-       	maxTriPu4CaloAnaEta = jtPu4Caloeta[i];
+	//       	maxTriPu4CaloAnaEta = jtPu4Caloeta[i];
       }
       else if(jtPu4Calopt[i] > twoTriPu4CaloAnaPt){
         threeTriPu4CaloAnaPt = twoTriPu4CaloAnaPt;
@@ -694,13 +730,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     }
 
     Double_t maxPu4PFAnaPt = -1;
-    Double_t maxPu4PFAnaEta = -100;
+    //    Double_t maxPu4PFAnaEta = -100;
 
     for(int i = 0; i < nPu4PFref; ++i){
       if(fabs(jtPu4PFeta[i]) > 2.0) continue;
       if(jtPu4PFpt[i] > maxPu4PFAnaPt){
 	maxPu4PFAnaPt = jtPu4PFpt[i];
-	maxPu4PFAnaEta = jtPu4PFeta[i];
+	//	maxPu4PFAnaEta = jtPu4PFeta[i];
       }
     }
 
@@ -729,7 +765,10 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     */
 
     Double_t maxPhotonAnaPt = -1;
-    Double_t maxPhotonAnaEta = -100;
+    //    Double_t maxPhotonAnaEta = -100;
+
+    Double_t maxPhotonMidAnaPt = -1;
+    //    Double_t maxPhotonMidAnaEta = -100;
 
     Double_t maxElectronAnaPt = -1;
     Double_t maxElectronAnaEta = -100;
@@ -738,7 +777,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     Double_t twoElectronAnaEta = -100;
 
     for(int i = 0; i < nPhotons; ++i){
-      if(fabs(photonEta[i]) > 1.44) continue;
+      if(fabs(photonEta[i]) > 2.1) continue;
       if(TMath::Abs(seedTime[i]) > 3) continue;
       if(swissCrx[i] > 0.9) continue;
       if(sigmaIetaIeta[i] < 0.002) continue;
@@ -748,6 +787,10 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
 	maxPhotonAnaPt = photonPt[i];
 	//	maxPhotonAnaEta = photonEta[i];
+
+	if(TMath::Abs(photonEta[i]) < 2.0 && photonPt[i] > maxPhotonMidAnaPt){
+	  maxPhotonMidAnaPt = photonPt[i];
+	}
       }
     }
 
@@ -756,22 +799,22 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       if(!isEle[i]) continue;
       if(photonPt[i] > maxElectronAnaPt){	
 	twoElectronAnaPt = maxElectronAnaPt;
-	twoElectronAnaEta = maxElectronAnaEta;
+	//	twoElectronAnaEta = maxElectronAnaEta;
 
 	maxElectronAnaPt = photonPt[i];
-	maxElectronAnaEta = photonEta[i];
+	//	maxElectronAnaEta = photonEta[i];
       }
       else if(photonPt[i] > twoElectronAnaPt){
         twoElectronAnaPt = photonPt[i];
-	twoElectronAnaEta = photonEta[i];
+	//	twoElectronAnaEta = photonEta[i];
       }
     }
     
     maxElectronAnaPt = -1;
     twoElectronAnaPt = -1;
 
-    maxElectronAnaEta = -100;
-    twoElectronAnaEta = -100;
+    //    maxElectronAnaEta = -100;
+    //    twoElectronAnaEta = -100;
 
     for(int i = 0; i < nGen; i++){
       if(genStatus[i] != 1) continue;
@@ -779,17 +822,27 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       //      if(fabs(genEta[i]) > 3.0) continue;
       if(genPt[i] > maxElectronAnaPt){
 	twoElectronAnaPt = maxElectronAnaPt;
-     	twoElectronAnaEta = maxElectronAnaEta;
+	//     	twoElectronAnaEta = maxElectronAnaEta;
 
 	maxElectronAnaPt = genPt[i];
-     	maxElectronAnaEta = genEta[i];
+	//     	maxElectronAnaEta = genEta[i];
       }
       else if(genPt[i] > twoElectronAnaPt){
         twoElectronAnaPt = genPt[i];
-	twoElectronAnaEta = genEta[i];
+	//	twoElectronAnaEta = genEta[i];
       }
     }
+    /*
+    Double_t trueZAnaPt = -1;
+    //    Double_t trueZAnaEta = -1;
     
+    for(int i = 0; i < nGen; i++){
+      if(TMath::Abs(genPDG[i]) == 23){
+		trueZAnaPt = genPt[i];
+	//	trueZAnaEta = genEta[i];
+      }
+    }
+    */
     Double_t maxMidPhotonAnaPt = -1;
     //    Double_t maxMidPhotonAnaEta = -100;
 
@@ -807,7 +860,9 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
     //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (2 of 2)
     //    const Int_t nOfflineObj = 4;
-    const Int_t nOfflineObj = 25;
+    const Int_t nOfflineObj = 1;
+    //current
+    //    const Int_t nOfflineObj = 29;
     //    const Int_t nOfflineObj = 27;
     //    const Int_t nOfflineObj = 23;
     if(nOfflineObj != nTrigType){
@@ -820,9 +875,15 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     Double_t trigOfflineEta[nOfflineObj] = {maxPu4PFAnaEta, maxPu4PFAnaEta, maxPu4PFAnaEta, maxPu4PFAnaEta};
     Bool_t trigCond[nOfflineObj] = {true, true, true, true};
     */
-    Double_t trigOfflinePt[nOfflineObj] = {maxPu4CaloAnaPt, maxPhotonAnaPt, maxPhotonAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxElectronAnaPt, maxPu4PFAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt};
-    Double_t trigOfflineEta[nOfflineObj] = {maxPu4CaloAnaEta, maxPhotonAnaEta, maxPhotonAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxElectronAnaEta, maxPu4PFAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta};
-    Bool_t trigCond[nOfflineObj] = {true, true, true, true, true, true, hiBin > 100, hiBin < 100 && hiBin > 60, true, twoDiPu4CaloAnaPt > 50.0, twoDiPu4CaloAnaPt > 50.0, twoTriPu4CaloAnaPt > 65.0 && threeTriPu4CaloAnaPt > 65.0, true, true, true, true, true, true, true, true, true, true, true, true, true};
+    Double_t trigOfflinePt[nOfflineObj] = {maxDPt};
+    Double_t trigOfflineEta[nOfflineObj] = {maxDEta};
+    Bool_t trigCond[nOfflineObj] = {true};
+
+    //    Double_t trigOfflinePt[nOfflineObj] = {maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonMidAnaPt, maxPhotonMidAnaPt, maxMuPt, maxPu4CaloAnaPt, maxPhotonMidAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonMidAnaPt, maxPhotonMidAnaPt, maxPhotonAnaPt, maxPhotonAnaPt, maxDiPu4CaloEta1p1AnaPt, maxDiPu4CaloEta0p7AnaPt, maxTriPu4CaloAnaPt, trueZAnaPt, trueZAnaPt, trueZAnaPt, trueZAnaPt, trueZAnaPt, trueZAnaPt, maxPu4PFAnaPt, maxMuPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPhotonMidAnaPt};
+
+    //    Double_t trigOfflineEta[nOfflineObj] = {maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonMidAnaEta, maxPhotonMidAnaEta, maxMuEta, maxPu4CaloAnaEta, maxPhotonMidAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonMidAnaEta, maxPhotonMidAnaEta, maxPhotonAnaEta, maxPhotonAnaEta, maxDiPu4CaloEta1p1AnaEta, maxDiPu4CaloEta0p7AnaEta, maxTriPu4CaloAnaEta, trueZAnaEta, trueZAnaEta, trueZAnaEta, trueZAnaEta, trueZAnaEta, trueZAnaEta, maxPu4PFAnaEta, maxMuEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPhotonMidAnaEta};
+
+    //    Bool_t trigCond[nOfflineObj] = {true, hiBin > 100, hiBin < 100 && hiBin > 60, true, hiBin > 100, true, maxMuPt > 10, maxMuPt > 10, true, hiBin > 100, hiBin < 100 && hiBin > 60, true, hiBin > 100, true, hiBin > 100, twoDiPu4CaloEta1p1AnaPt > 50, twoDiPu4CaloEta0p7AnaPt > 50, twoTriPu4CaloAnaPt > 60 && threeTriPu4CaloAnaPt > 60, TMath::Abs(maxElectronAnaEta) < 1.44 && TMath::Abs(twoElectronAnaEta) < 1.44, TMath::Abs(maxElectronAnaEta) < 1.44 && TMath::Abs(twoElectronAnaEta) < 1.44, TMath::Abs(maxElectronAnaEta) < 1.44 && TMath::Abs(twoElectronAnaEta) < 1.44, TMath::Abs(maxElectronAnaEta) < 2.0 && TMath::Abs(twoElectronAnaEta) < 2.0, TMath::Abs(maxElectronAnaEta) < 2.0 && TMath::Abs(twoElectronAnaEta) < 2.0, TMath::Abs(maxElectronAnaEta) < 2.0 && TMath::Abs(twoElectronAnaEta) < 2.0, true, true, maxMuPt > 10, maxPhotonMidAnaPt > 20, maxMuPt > 10};
     /*
     Double_t trigOfflinePt[nOfflineObj] = {maxTrkPt, maxPu3CaloAnaPt, maxPu3CaloAnaPt,  maxPu4CaloAnaPt, maxMidPu4CaloAnaPt, maxPu4PFAnaPt, maxPu4CaloAnaPt, maxPhotonAnaPt, maxMidPhotonAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxDiPu4CaloAnaPt, maxTriPu4CaloAnaPt, maxMuPt, maxMuPt, maxMuPt, maxMuPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt, maxPu4CaloAnaPt};
     Double_t trigOfflineEta[nOfflineObj] = {maxTrkEta, maxPu3CaloAnaEta, maxPu3CaloAnaEta, maxPu4CaloAnaEta, maxMidPu4CaloAnaEta, maxPu4PFAnaEta, maxPu4CaloAnaEta, maxPhotonAnaEta, maxMidPhotonAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxDiPu4CaloAnaEta, maxTriPu4CaloAnaEta, maxMuEta, maxMuEta, maxMuEta, maxMuEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta, maxPu4CaloAnaEta};
