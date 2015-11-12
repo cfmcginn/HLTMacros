@@ -491,23 +491,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     30,    //LEV1MU
     120,   //LEV1MU3_JET
     60,    //LEV1MU3_GAMMA
-    60,    //TRACKR2
-    60,    //TRACKR2_50100
-    60,    //TRACKR2_3050
-    60,    //TRACKR4
-    60,    //TRACKR4_50100
-    60,    //TRACKR4_3050
     160,   //R4JET
     160,   //R4JET_50100
     160,   //R4JET_3050
     100,   //GAMMAETA1P5
     100,   //GAMMAETA1P5_50100
     100,   //GAMMAETA1P5_3050
-    100,   //GAMMAETA2P1
-    100,   //GAMMAETA2P1_50100
-    100,   //GAMMAETA2P1_3050
     100,   //GAMMAETA3P1
-    100,   //GAMMAETA3P1_CUT
     100,   //GAMMAETA3P1_50100
     100,   //GAMMAETA3P1_3050
     160,   //R4DIJET_ETA1P1
@@ -516,12 +506,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     200,   //GAMMAX_15_ETA1P5_MASS50_1000
     200,   //GAMMAX_15_ETA2P1_MASS50_1000_R9CUT
     200,   //GAMMAX_15_ETA2P5_MASS50_1000_R9SIGMAHECUT
-    30,    //L2MU3
     160,   //R4JETL2MU3
     100,   //L2MU3_GAMMA
-    30,    //L3MU3
-    160,   //R4JETL3MU3
-    100,   //L3MU3_GAMMA
   };
 
 
@@ -537,23 +523,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     30,    //LEV1MU
     120,   //LEV1MU3_JET
     60,    //LEV1MU3_GAMMA
-    60,    //TRACKR2
-    60,    //TRACKR2_50100
-    60,    //TRACKR2_3050
-    60,    //TRACKR4
-    60,    //TRACKR4_50100
-    60,    //TRACKR4_3050
     160,   //R4JET
     160,   //R4JET_50100
     160,   //R4JET_3050
     100,   //GAMMAETA1P5
     100,   //GAMMAETA1P5_50100
     100,   //GAMMAETA1P5_3050
-    100,   //GAMMAETA2P1
-    100,   //GAMMAETA2P1_50100
-    100,   //GAMMAETA2P1_3050
     100,   //GAMMAETA3P1
-    100,   //GAMMAETA3P1_CUT
     100,   //GAMMAETA3P1_50100
     100,   //GAMMAETA3P1_3050
     160,   //R4DIJET_ETA1P1
@@ -562,12 +538,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
     200,   //GAMMAX_15_ETA1P5_MASS50_1000
     200,   //GAMMAX_15_ETA2P1_MASS50_1000_R9CUT
     200,   //GAMMAX_15_ETA2P5_MASS50_1000_R9SIGMAHECUT
-    30,    //L2MU3
     160,   //R4JETL2MU3
     100,   //L2MU3_GAMMA
-    30,    //L3MU3
-    160,   //R4JETL3MU3
-    100,   //L3MU3_GAMMA
   };
 
 
@@ -648,6 +620,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       histsPt_p[iter][iter2+1] = (TH1F*)histsPt_p[iter][0]->Clone(Form("%s_%s_%d_pt", trigName[iter][iter2].c_str(), trigType[iter].c_str(), trigThresh[iter][iter2]));
       histsEta_p[iter][iter2] = new TH1F(Form("leading_%s_%d_eta", trigType[iter].c_str(), trigThresh[iter][iter2]), Form("leading_%s_%d_eta", trigType[iter].c_str(), trigThresh[iter][iter2]), nEtaBins, -5.0, 5.0);
       histsEtaTrig_p[iter][iter2] = new TH1F(Form("%s_%s_%d_eta", trigName[iter][iter2].c_str(), trigType[iter].c_str(), trigThresh[iter][iter2]), Form("%s_%s_%d_eta", trigName[iter][iter2].c_str(), trigType[iter].c_str(), trigThresh[iter][iter2]), nEtaBins, -5.0, 5.0);
+
       histsSpectBoundPt_p[iter][iter2] = new TH1F(Form("leadingPt_%s_%d", trigType[iter].c_str(), trigThresh[iter][iter2]), Form(";%s p_{T}^{reco};Events/GeV", trigType[iter].c_str()), nPtBins[iter], 0.0, maxPt[iter]);
 
       if(!strcmp("TRACK", trigType[iter].substr(0,5).c_str())){
@@ -1020,9 +993,9 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
     
     for(int i = 0; i < nGen; i++){
-      if(genStatus[i] != 1) continue;
-      if(TMath::Abs(genPDG[i]) != 11) continue;
-      //      if(fabs(genEta[i]) > 3.0) continue;
+      //      if(genStatus[i] != 1) continue;
+      if(TMath::Abs(genPDG[i]) != 22) continue;
+      if(fabs(genEta[i]) > 1.44) continue;
       if(genPt[i] > maxElectronAnaPt){
 	twoElectronAnaPt = maxElectronAnaPt;
 	twoElectronAnaEta = maxElectronAnaEta;
@@ -1067,7 +1040,7 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
     //FOR ADDITIONAL OFFLINE OBJECT MATCHING, EDIT HERE (2 of 2)
     
-    const Int_t nOfflineObj = 42;
+    const Int_t nOfflineObj = 28;
     
     if(nOfflineObj != nTrigType){
       std::cout << "ERROR: OFFLINE OBJECT NUMBER MUST MATCH NUMBER OF TRIGGER 'TYPES' IN INPUT TEXT FILE; RETURN 1" << std::endl;
@@ -1081,29 +1054,19 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       maxPu4CaloAnaPt,            //LEV1JET_50100
       maxPu4CaloAnaPt,            //LEV1JET_3050
       maxPhotonMidAnaPt,          //LEV1GAMMA
-      maxPhotonMidAnaPt,          //LEV1GAMMA_50100
-      maxPhotonMidAnaPt,          //LEV1GAMMA_3050
+      maxElectronAnaPt,          //LEV1GAMMA_50100
+      maxElectronAnaPt,          //LEV1GAMMA_3050
       maxPhotonMidAnaPt,          //LEV1ISOGAMMA
       maxMuPt,                    //LEV1MU
       maxPu4CaloAnaPt,            //LEV1MU3_JET 
       maxPhotonMidAnaPt,          //LEV1MU3_GAMMA
-      maxPu3CaloAnaPt_2p5,        //TRACKR2
-      maxPu3CaloAnaPt_2p5,        //TRACKR2_50100
-      maxPu3CaloAnaPt_2p5,        //TRACKR2_3050
-      maxPu4CaloAnaPt_2p5,        //TRACKR4
-      maxPu4CaloAnaPt_2p5,        //TRACKR4_50100
-      maxPu4CaloAnaPt_2p5,        //TRACKR4_3050
       maxPu4CaloAnaPt,            //R4JET
       maxPu4CaloAnaPt,            //R4JET_50100
       maxPu4CaloAnaPt,            //R4JET_3050
       maxPhotonMidAnaPt,          //GAMMAETA1P5
       maxPhotonMidAnaPt,          //GAMMAETA1P5_50100
       maxPhotonMidAnaPt,          //GAMMAETA1P5_3050
-      maxPhotonAnaPt,             //GAMMAETA2P1
-      maxPhotonAnaPt,             //GAMMAETA2P1_50100
-      maxPhotonAnaPt,             //GAMMAETA2P1_3050
       maxPhotonHiAnaPt,           //GAMMAETA3P1
-      maxPhotonHiAnaPt,           //GAMMAETA3P1_CUT
       maxPhotonHiAnaPt,           //GAMMAETA3P1_50100
       maxPhotonHiAnaPt,           //GAMMAETA3P1_3050
       maxDiPu4CaloEta1p1AnaPt,    //R4DIJET_ETA1P1
@@ -1112,12 +1075,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       trueZAnaPt,                 //GAMMAX_15_ETA1P5_MASS50_1000
       trueZAnaPt,                 //GAMMAX_15_ETA2P1_MASS50_1000_R9CUT
       trueZAnaPt,                 //GAMMAX_15_ETA2P5_MASS50_1000_R9SIGMAHECUT
-      maxMuPt,                    //L2MU3
       maxPu4CaloAnaPt,            //R4JETL2MU3
       maxPhotonMidAnaPt,           //L2MU3_GAMMA
-      maxMuPt,                    //L3MU3
-      maxPu4CaloAnaPt,            //R4JETL3MU3
-      maxPhotonMidAnaPt           //L3MU3_GAMMA
     };
 
     Double_t trigOfflineEta[nOfflineObj] = {
@@ -1132,23 +1091,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       maxMuEta,                    //LEV1MU
       maxPu4CaloAnaEta,            //LEV1MU3_JET 
       maxPhotonMidAnaEta,          //LEV1MU3_GAMMA
-      maxPu3CaloAnaEta_2p5,        //TRACKR2
-      maxPu3CaloAnaEta_2p5,        //TRACKR2_50100
-      maxPu3CaloAnaEta_2p5,        //TRACKR2_3050
-      maxPu4CaloAnaEta_2p5,        //TRACKR4
-      maxPu4CaloAnaEta_2p5,        //TRACKR4_50100
-      maxPu4CaloAnaEta_2p5,        //TRACKR4_3050
       maxPu4CaloAnaEta,            //R4JET
       maxPu4CaloAnaEta,            //R4JET_50100
       maxPu4CaloAnaEta,            //R4JET_3050
       maxPhotonMidAnaEta,          //GAMMAETA1P5
       maxPhotonMidAnaEta,          //GAMMAETA1P5_50100
       maxPhotonMidAnaEta,          //GAMMAETA1P5_3050
-      maxPhotonAnaEta,             //GAMMAETA2P1
-      maxPhotonAnaEta,             //GAMMAETA2P1_50100
-      maxPhotonAnaEta,             //GAMMAETA2P1_3050
       maxPhotonHiAnaEta,           //GAMMAETA3P1
-      maxPhotonHiAnaEta,           //GAMMAETA3P1_CUT
       maxPhotonHiAnaEta,           //GAMMAETA3P1_50100
       maxPhotonHiAnaEta,           //GAMMAETA3P1_3050
       maxDiPu4CaloEta1p1AnaEta,    //R4DIJET_ETA1P1
@@ -1157,12 +1106,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       trueZAnaEta,                 //GAMMAX_15_ETA1P5_MASS50_1000
       trueZAnaEta,                 //GAMMAX_15_ETA2P1_MASS50_1000_R9CUT
       trueZAnaEta,                 //GAMMAX_15_ETA2P5_MASS50_1000_R9SIGMAHECUT
-      maxMuEta,                    //L2MU3
       maxPu4CaloAnaEta,            //R4JETL2MU3
       maxPhotonMidAnaEta,          //L2MU3_GAMMA
-      maxMuEta,                    //L3MU3
-      maxPu4CaloAnaEta,            //R4JETL3MU3
-      maxPhotonMidAnaEta           //L3MU3_GAMMA
     };
 
     Double_t trigOfflinePhi[nOfflineObj] = {
@@ -1177,23 +1122,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       maxMuPhi,                    //LEV1MU
       maxPu4CaloAnaPhi,            //LEV1MU3_JET 
       maxPhotonMidAnaPhi,          //LEV1MU3_GAMMA
-      maxPu3CaloAnaPhi_2p5,        //TRACKR2
-      maxPu3CaloAnaPhi_2p5,        //TRACKR2_50100
-      maxPu3CaloAnaPhi_2p5,        //TRACKR2_3050
-      maxPu4CaloAnaPhi_2p5,        //TRACKR4
-      maxPu4CaloAnaPhi_2p5,        //TRACKR4_50100
-      maxPu4CaloAnaPhi_2p5,        //TRACKR4_3050
       maxPu4CaloAnaPhi,            //R4JET
       maxPu4CaloAnaPhi,            //R4JET_50100
       maxPu4CaloAnaPhi,            //R4JET_3050
       maxPhotonMidAnaPhi,          //GAMMAETA1P5
       maxPhotonMidAnaPhi,          //GAMMAETA1P5_50100
       maxPhotonMidAnaPhi,          //GAMMAETA1P5_3050
-      maxPhotonAnaPhi,             //GAMMAETA2P1
-      maxPhotonAnaPhi,             //GAMMAETA2P1_50100
-      maxPhotonAnaPhi,             //GAMMAETA2P1_3050
       maxPhotonHiAnaPhi,           //GAMMAETA3P1
-      maxPhotonHiAnaPhi,           //GAMMAETA3P1_CUT
       maxPhotonHiAnaPhi,           //GAMMAETA3P1_50100
       maxPhotonHiAnaPhi,           //GAMMAETA3P1_3050
       maxDiPu4CaloEta1p1AnaPhi,    //R4DIJET_ETA1P1
@@ -1202,12 +1137,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       trueZAnaPhi,                 //GAMMAX_15_ETA1P5_MASS50_1000
       trueZAnaPhi,                 //GAMMAX_15_ETA2P1_MASS50_1000_R9CUT
       trueZAnaPhi,                 //GAMMAX_15_ETA2P5_MASS50_1000_R9SIGMAHECUT
-      maxMuPhi,                    //L2MU3
       maxPu4CaloAnaPhi,            //R4JETL2MU3
       maxPhotonMidAnaPhi,          //L2MU3_GAMMA
-      maxMuPhi,                    //L3MU3
-      maxPu4CaloAnaPhi,            //R4JETL3MU3
-      maxPhotonMidAnaPhi           //L3MU3_GAMMA
     };
 
 
@@ -1223,23 +1154,13 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       true,                    //LEV1MU
       true,            //LEV1MU3_JET 
       true,          //LEV1MU3_GAMMA
-      true,            //TRACKR2
-      hiBin > 130,            //TRACKR2_50100
-      hiBin < 90 && hiBin > 70,            //TRACKR2_3050
-      true,        //TRACKR4
-      hiBin > 130,        //TRACKR4_50100
-      hiBin < 90 && hiBin > 70,        //TRACKR4_3050
       true,            //R4JET
       hiBin > 130,            //R4JET_50100
       hiBin < 90 && hiBin > 70,            //R4JET_3050
       true,          //GAMMAETA1P5
       hiBin > 130,          //GAMMAETA1P5_50100
       hiBin < 90 && hiBin > 70,          //GAMMAETA1P5_3050
-      true,             //GAMMAETA2P1
-      hiBin > 130,             //GAMMAETA2P1_50100
-      hiBin < 90 && hiBin > 70,             //GAMMAETA2P1_3050
       true,           //GAMMAETA3P1
-      true,           //GAMMAETA3P1_CUT
       hiBin > 130,           //GAMMAETA3P1_50100
       hiBin < 90 && hiBin > 70,           //GAMMAETA3P1_3050
       twoDiPu4CaloEta1p1AnaPt > 50,    //R4DIJET_ETA1P1
@@ -1248,12 +1169,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
       TMath::Abs(maxElectronAnaEta) < 1.44 && TMath::Abs(twoElectronAnaEta) < 1.44,                 //GAMMAX_15_ETA1P5_MASS50_1000
       TMath::Abs(maxElectronAnaEta) < 2.0 && TMath::Abs(twoElectronAnaEta) < 2.0,                 //GAMMAX_15_ETA2P1_MASS50_1000_R9CUT
       TMath::Abs(maxElectronAnaEta) < 2.4 && TMath::Abs(twoElectronAnaEta) < 2.4,                 //GAMMAX_15_ETA2P5_MASS50_1000_R9SIGMAHECUT
-      true,                    //L2MU3
       true,            //R4JETL2MU3
       true,              //L2MU3_GAMMA
-      true,                    //L3MU3
-      true,            //R4JETL3MU3
-      true              //L3MU3_GAMMA
     };
     
 
@@ -1563,6 +1480,8 @@ int matchTrigTree_HI(const std::string inHLTFile, const std::string inForestFile
 
 int main(int argc, char *argv[])
 {
+  TApplication a("a", 0, 0);
+
   if(argc != 4 && argc != 5){
     std::cout << "Usage: matchTrigTree_HI <inHLTFile> <inForestFile> <inTrigFileName> <inOptMaxName>" << std::endl;
     std::cout << "argNum: " << argc << std::endl;
